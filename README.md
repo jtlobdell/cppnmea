@@ -7,6 +7,7 @@ Despite that,
 
 A benchmark on my Raspberry Pi Zero after the first commit:
 
+```
 john@raspberrypi ~ $ cat /proc/cpuinfo
 processor	: 0
 model name	: ARMv6-compatible processor rev 7 (v6l)
@@ -24,6 +25,6 @@ Serial		: 00000000bc5a3643
 john@raspberrypi ~ $ time ./nmea_parse_O3 1000000
 very nice!
 ./nmea_parse_O3 1000000  5.97s user 0.01s system 99% cpu 5.988 total
-
+```
 
 Seems promising!
