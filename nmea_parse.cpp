@@ -12,6 +12,16 @@
 
 namespace nmea::parse {
 
+enum class latitude_direction_t {
+    north,
+    south
+};
+
+enum class longitude_direction_t {
+    east,
+    west
+};
+
 struct utc_time_t {
     unsigned int hh;
     unsigned int mm;
@@ -23,12 +33,14 @@ struct latitude_t {
     unsigned int dd;
     unsigned int mm;
     unsigned int mmmm;
+    latitude_direction_t dir;
 };
 
 struct longitude_t {
     unsigned int ddd;
     unsigned int mm;
     unsigned int mmmm;
+    longitude_direction_t dir;
 };
 
 enum class position_fix_indicator_t {
@@ -43,9 +55,7 @@ struct gpgga {
     std::string message_id;
     utc_time_t time;
     latitude_t latitude;
-    char latitude_dir;
     longitude_t longitude;
-    char longitude_dir;
     position_fix_indicator_t position_fix_indicator;
     unsigned int sats_used;
     float hdop;
@@ -55,6 +65,29 @@ struct gpgga {
     char geoid_units;
     float age_of_diff_corr;
     unsigned int diff_ref_station_id;
+    unsigned int checksum;
+};
+
+enum class position_system_mode_indicator_t {
+    autonomous,
+    differential,
+    estimated,
+    manual,
+    invalid
+};
+
+enum class data_status_t {
+    valid,
+    invalid
+};
+
+struct gpgll {
+    std::string message_id;
+    latitude_t latitude;
+    longitude_t longitude;
+    utc_time_t time;
+    data_status_t data_status;
+    position_system_mode_indicator_t position_system_mode_indicator;
     unsigned int checksum;
 };
 
@@ -73,6 +106,7 @@ BOOST_FUSION_ADAPT_STRUCT(
     (unsigned int, dd)
     (unsigned int, mm)
     (unsigned int, mmmm)
+    (nmea::parse::latitude_direction_t, dir)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -80,6 +114,7 @@ BOOST_FUSION_ADAPT_STRUCT(
     (unsigned int, ddd)
     (unsigned int, mm)
     (unsigned int, mmmm)
+    (nmea::parse::longitude_direction_t, dir)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -87,9 +122,7 @@ BOOST_FUSION_ADAPT_STRUCT(
     (std::string, message_id)
     (nmea::parse::utc_time_t, time)
     (nmea::parse::latitude_t, latitude)
-    (char, latitude_dir)
     (nmea::parse::longitude_t, longitude)
-    (char, longitude_dir)
     (nmea::parse::position_fix_indicator_t, position_fix_indicator)
     (unsigned int, sats_used)
     (float, hdop)
@@ -102,10 +135,43 @@ BOOST_FUSION_ADAPT_STRUCT(
     (unsigned int, checksum)
 )
 
+BOOST_FUSION_ADAPT_STRUCT (
+    nmea::parse::gpgll,
+    (std::string, message_id)
+    (nmea::parse::latitude_t, latitude)
+    (nmea::parse::longitude_t, longitude)
+    (nmea::parse::utc_time_t, time)
+    (nmea::parse::data_status_t, data_status)
+    (nmea::parse::position_system_mode_indicator_t, position_system_mode_indicator)
+    (unsigned int, checksum)
+)
+
 namespace nmea::parse {
 
 namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
+
+struct latitude_direction_parser : qi::symbols<char, latitude_direction_t>
+{
+    latitude_direction_parser()
+    {
+        add
+            ("N", latitude_direction_t::north)
+            ("S", latitude_direction_t::south)
+            ;
+    }
+};
+
+struct longitude_direction_parser : qi::symbols<char, longitude_direction_t>
+{
+    longitude_direction_parser()
+    {
+        add
+            ("E", longitude_direction_t::east)
+            ("W", longitude_direction_t::west)
+            ;
+    }
+};
 
 struct position_fix_indicator_parser : qi::symbols<char, position_fix_indicator_t>
 {
@@ -122,7 +188,94 @@ struct position_fix_indicator_parser : qi::symbols<char, position_fix_indicator_
             ;
     }
 };
-    
+
+struct data_status_parser : qi::symbols<char, data_status_t>
+{
+    data_status_parser()
+    {
+        add
+            ("A", data_status_t::valid)
+            ("V", data_status_t::invalid)
+            ;
+    }
+};
+
+
+struct position_system_mode_indicator_parser : qi::symbols<char, position_system_mode_indicator_t>
+{
+    position_system_mode_indicator_parser()
+    {
+        add
+            ("A", position_system_mode_indicator_t::autonomous)
+            ("D", position_system_mode_indicator_t::differential)
+            ("E", position_system_mode_indicator_t::estimated)
+            ("M", position_system_mode_indicator_t::manual)
+            ("N", position_system_mode_indicator_t::invalid)
+            ;
+    }
+};
+
+template <typename Iterator>
+struct utc_time_parser : qi::grammar<Iterator, nmea::parse::utc_time_t(), ascii::space_type>
+{
+    utc_time_parser() : utc_time_parser::base_type(start)
+    {
+        using qi::uint_parser;
+        
+        start %= // hhmmss.sss
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            '.' >>
+            uint_parser<unsigned int, 10, 3, 3>()
+            ;        
+    }
+
+    qi::rule<Iterator, nmea::parse::utc_time_t(), ascii::space_type> start;    
+};
+
+template <typename Iterator>
+struct latitude_parser : qi::grammar<Iterator, nmea::parse::latitude_t(), ascii::space_type>
+{
+    latitude_parser() : latitude_parser::base_type(start)
+    {
+        using qi::uint_parser;
+        
+        start %= // ddmm.mmmm,[N/S indicator]
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            '.' >>
+            uint_parser<unsigned int, 10, 4, 4>() >>
+            ',' >>
+            latitude_direction_
+            ;        
+    };
+
+    qi::rule<Iterator, nmea::parse::latitude_t(), ascii::space_type> start;
+    latitude_direction_parser latitude_direction_;
+};
+
+template <typename Iterator>
+struct longitude_parser : qi::grammar<Iterator, nmea::parse::longitude_t(), ascii::space_type>
+{
+    longitude_parser() : longitude_parser::base_type(start)
+    {
+        using qi::uint_parser;
+
+        start %= // dddmm.mmmm,[E/W indicator]
+            uint_parser<unsigned int, 10, 3, 3>() >>
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            '.' >>
+            uint_parser<unsigned int, 10, 4, 4>() >>
+            ',' >>
+            longitude_direction_
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::longitude_t(), ascii::space_type> start;
+    longitude_direction_parser longitude_direction_;
+};
+
 template <typename Iterator>
 struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga(), ascii::space_type>
 {
@@ -137,36 +290,12 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga(), ascii::space_t
         using qi::_pass;
         using qi::_1;
         using ascii::space;
-
-        time_ %= // hhmmss.sss
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            '.' >>
-            uint_parser<unsigned int, 10, 3, 3>()
-            ;
-
-        latitude_ %= // ddmm.mmmm
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            '.' >>
-            uint_parser<unsigned int, 10, 4, 4>()
-            ;
-
-        longitude_ %= // dddmm.mmmm
-            uint_parser<unsigned int, 10, 3, 3>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            '.' >>
-            uint_parser<unsigned int, 10, 4, 4>()
-            ;
         
         start %=
             string("$GPGGA") >> ',' >> // start -> $GPGGA
-            time_ >> ',' >> // UTC time hhmmss.sss
+            utc_time_ >> ',' >> // UTC time hhmmss.sss
             latitude_ >> ',' >> // latitude
-            char_("nNsS") >> ',' >> // n/s indicator
             longitude_ >> ',' >> // longitude
-            char_("eEwW") >> ',' >> // e/w indicator
             position_fix_indicator_ >> ',' >> // Position fix indicator
             uint_[ _pass = (_1 >= 0 && _1 <= 12) ] >> ',' >> // satellites used
             float_ >> ',' >> // horizontal dilution of precision
@@ -181,9 +310,9 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga(), ascii::space_t
     }
 
     qi::rule<Iterator, nmea::parse::gpgga(), ascii::space_type> start;
-    qi::rule<Iterator, nmea::parse::utc_time_t(), ascii::space_type> time_;
-    qi::rule<Iterator, nmea::parse::latitude_t(), ascii::space_type> latitude_;
-    qi::rule<Iterator, nmea::parse::longitude_t(), ascii::space_type> longitude_;
+    utc_time_parser<Iterator> utc_time_;
+    latitude_parser<Iterator> latitude_;
+    longitude_parser<Iterator> longitude_;    
     position_fix_indicator_parser position_fix_indicator_;
 };
 
