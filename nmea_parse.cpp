@@ -216,7 +216,7 @@ struct position_system_mode_indicator_parser : qi::symbols<char, position_system
 };
 
 template <typename Iterator>
-struct utc_time_parser : qi::grammar<Iterator, nmea::parse::utc_time_t(), ascii::space_type>
+struct utc_time_parser : qi::grammar<Iterator, nmea::parse::utc_time_t()>
 {
     utc_time_parser() : utc_time_parser::base_type(start)
     {
@@ -231,11 +231,11 @@ struct utc_time_parser : qi::grammar<Iterator, nmea::parse::utc_time_t(), ascii:
             ;        
     }
 
-    qi::rule<Iterator, nmea::parse::utc_time_t(), ascii::space_type> start;    
+    qi::rule<Iterator, nmea::parse::utc_time_t()> start;
 };
 
 template <typename Iterator>
-struct latitude_parser : qi::grammar<Iterator, nmea::parse::latitude_t(), ascii::space_type>
+struct latitude_parser : qi::grammar<Iterator, nmea::parse::latitude_t()>
 {
     latitude_parser() : latitude_parser::base_type(start)
     {
@@ -251,12 +251,12 @@ struct latitude_parser : qi::grammar<Iterator, nmea::parse::latitude_t(), ascii:
             ;        
     };
 
-    qi::rule<Iterator, nmea::parse::latitude_t(), ascii::space_type> start;
+    qi::rule<Iterator, nmea::parse::latitude_t()> start;
     latitude_direction_parser latitude_direction_;
 };
 
 template <typename Iterator>
-struct longitude_parser : qi::grammar<Iterator, nmea::parse::longitude_t(), ascii::space_type>
+struct longitude_parser : qi::grammar<Iterator, nmea::parse::longitude_t()>
 {
     longitude_parser() : longitude_parser::base_type(start)
     {
@@ -272,12 +272,12 @@ struct longitude_parser : qi::grammar<Iterator, nmea::parse::longitude_t(), asci
             ;
     }
 
-    qi::rule<Iterator, nmea::parse::longitude_t(), ascii::space_type> start;
+    qi::rule<Iterator, nmea::parse::longitude_t()> start;
     longitude_direction_parser longitude_direction_;
 };
 
 template <typename Iterator>
-struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga(), ascii::space_type>
+struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
 {
     gpgga_parser() : gpgga_parser::base_type(start)
     {
@@ -309,7 +309,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga(), ascii::space_t
             ;
     }
 
-    qi::rule<Iterator, nmea::parse::gpgga(), ascii::space_type> start;
+    qi::rule<Iterator, nmea::parse::gpgga()> start;
     utc_time_parser<Iterator> utc_time_;
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;    
@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
         nmea::parse::gpgga msg;
         std::string::const_iterator iter = sample.begin();
         std::string::const_iterator end = sample.end();
-        win = phrase_parse(iter, end, p, space, msg);
+        win = parse(iter, end, p, msg);
         win &= (iter == end);
     }
 
