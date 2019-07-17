@@ -22,11 +22,38 @@ enum class longitude_direction_t {
     west
 };
 
+enum class position_fix_indicator_t {
+    invalid,
+    gps_sps_mode,
+    differential_gps_sps_mode,
+    dead_reckoning,
+    unsupported
+};
+
+enum class position_system_mode_indicator_t {
+    autonomous,
+    differential,
+    estimated,
+    manual,
+    invalid
+};
+
+enum class data_status_t {
+    valid,
+    invalid
+};
+
 struct utc_time_t {
     unsigned int hh;
     unsigned int mm;
     unsigned int ss;
     unsigned int sss;
+};
+
+struct ut_date_t {
+    unsigned int dd;
+    unsigned int mm;
+    unsigned int yy;
 };
 
 struct latitude_t {
@@ -43,14 +70,7 @@ struct longitude_t {
     longitude_direction_t dir;
 };
 
-enum class position_fix_indicator_t {
-    invalid,
-    gps_sps_mode,
-    differential_gps_sps_mode,
-    dead_reckoning,
-    unsupported
-};
-
+// Global Positioning System Fix Data
 struct gpgga {
     std::string message_id;
     utc_time_t time;
@@ -68,19 +88,7 @@ struct gpgga {
     unsigned int checksum;
 };
 
-enum class position_system_mode_indicator_t {
-    autonomous,
-    differential,
-    estimated,
-    manual,
-    invalid
-};
-
-enum class data_status_t {
-    valid,
-    invalid
-};
-
+// Geographic Position - Latitude / Longitude
 struct gpgll {
     std::string message_id;
     latitude_t latitude;
@@ -91,6 +99,56 @@ struct gpgll {
     unsigned int checksum;
 };
 
+struct gpgsv_entry {
+    unsigned int satellite_id_number;
+    unsigned int elevation;
+    unsigned int azimuth;
+    unsigned int signal_noise_ratio;    
+};
+
+// GNSS Satellites in View
+struct gpgsv {
+    std::string message_id;
+    unsigned int number_of_messages;
+    unsigned int message_number;
+    unsigned int satellites_in_view;
+    std::vector<gpgsv_entry> gpgsv_entries;
+    unsigned int checksum;
+};
+
+// Recommended Minimum Specific GNSS Data
+struct gprmc {
+    std::string message_id;
+    utc_time_t time;
+    latitude_t latitude;
+    longitude_t longitude;
+    float speed_over_ground;
+    float course_over_ground;
+    ut_date_t date;
+    position_system_mode_indicator_t position_system_mode_indicator;
+    unsigned int checksum;
+};
+
+// Course Over Ground and Ground Speed
+struct gpvtg {
+    std::string message_id;
+    float course_over_ground_true;
+    float course_over_ground_magnetic;
+    float ground_speed_knots;
+    float ground_speed_kmph;
+    position_system_mode_indicator_t position_system_mode_indicator;
+    unsigned int checksum;
+};
+
+typedef boost::variant<
+    nmea::parse::gpgga,
+    nmea::parse::gpgll,
+    nmea::parse::gpgsv,
+    nmea::parse::gprmc,
+    nmea::parse::gpvtg
+    >
+nmea_message;
+
 } // namespace nmea::parse
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -99,6 +157,13 @@ BOOST_FUSION_ADAPT_STRUCT(
     (unsigned int, mm)
     (unsigned int, ss)
     (unsigned int, sss)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    nmea::parse::ut_date_t,
+    (unsigned int, dd)
+    (unsigned int, mm)
+    (unsigned int, yy)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -146,6 +211,48 @@ BOOST_FUSION_ADAPT_STRUCT (
     (unsigned int, checksum)
 )
 
+BOOST_FUSION_ADAPT_STRUCT (
+    nmea::parse::gpgsv_entry,
+    (unsigned int, satellite_id_number)
+    (unsigned int, elevation)
+    (unsigned int, azimuth)
+    (unsigned int, signal_noise_ratio)
+)
+
+BOOST_FUSION_ADAPT_STRUCT (
+    nmea::parse::gpgsv,
+    (std::string, message_id)
+    (unsigned int, number_of_messages)
+    (unsigned int, message_number)
+    (unsigned int, satellites_in_view)
+    (std::vector<nmea::parse::gpgsv_entry>, gpgsv_entries)
+    (unsigned int, checksum)
+)
+
+BOOST_FUSION_ADAPT_STRUCT (
+    nmea::parse::gprmc,
+    (std::string, message_id)
+    (nmea::parse::utc_time_t, time)
+    (nmea::parse::latitude_t, latitude)
+    (nmea::parse::longitude_t, longitude)
+    (float, speed_over_ground)
+    (float, course_over_ground)
+    (nmea::parse::ut_date_t, date)
+    (nmea::parse::position_system_mode_indicator_t, position_system_mode_indicator)
+    (unsigned int, checksum)
+)
+
+BOOST_FUSION_ADAPT_STRUCT (
+    nmea::parse::gpvtg,
+    (std::string, message_id)
+    (float, course_over_ground_true)
+    (float, course_over_ground_magnetic)
+    (float, ground_speed_knots)
+    (float, ground_speed_kmph)
+    (nmea::parse::position_system_mode_indicator_t, position_system_mode_indicator)
+    (unsigned int, checksum)
+)
+    
 namespace nmea::parse {
 
 namespace qi = boost::spirit::qi;
@@ -200,7 +307,6 @@ struct data_status_parser : qi::symbols<char, data_status_t>
     }
 };
 
-
 struct position_system_mode_indicator_parser : qi::symbols<char, position_system_mode_indicator_t>
 {
     position_system_mode_indicator_parser()
@@ -232,6 +338,23 @@ struct utc_time_parser : qi::grammar<Iterator, nmea::parse::utc_time_t()>
     }
 
     qi::rule<Iterator, nmea::parse::utc_time_t()> start;
+};
+
+template <typename Iterator>
+struct ut_date_parser : qi::grammar<Iterator, nmea::parse::ut_date_t()>
+{
+    ut_date_parser() : ut_date_parser::base_type(start)
+    {
+        using qi::uint_parser;
+        
+        start %= // ddmmyy
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            uint_parser<unsigned int, 10, 2, 2>() >>
+            uint_parser<unsigned int, 10, 2, 2>()
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::ut_date_t()> start;
 };
 
 template <typename Iterator>
@@ -316,6 +439,165 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
     position_fix_indicator_parser position_fix_indicator_;
 };
 
+template <typename Iterator>
+struct gpgll_parser : qi::grammar<Iterator, nmea::parse::gpgll()>
+{
+    gpgll_parser() : gpgll_parser::base_type(start)
+    {
+        using qi::string;
+        using qi::char_;
+        using qi::float_;
+        using qi::uint_;
+        using qi::uint_parser;
+        using qi::_pass;
+        using qi::_1;
+        
+        start %=
+            string("$GPGLL") >> ',' >>
+            latitude_ >> ',' >>
+            longitude_ >> ',' >>
+            utc_time_ >> ',' >>
+            data_status_ >> ',' >>
+            position_system_mode_indicator_ >>
+            '*' >>
+            uint_parser<unsigned int, 16, 2, 2>() // checksum
+            ;
+    }
+    
+    qi::rule<Iterator, nmea::parse::gpgll()> start;
+    latitude_parser<Iterator> latitude_;
+    longitude_parser<Iterator> longitude_;
+    utc_time_parser<Iterator> utc_time_;
+    data_status_parser data_status_;
+    position_system_mode_indicator_parser position_system_mode_indicator_;
+};
+
+// untested
+template <typename Iterator>
+struct gpgsv_entry_parser : qi::grammar<Iterator, nmea::parse::gpgsv_entry()>
+{
+    gpgsv_entry_parser() : gpgsv_entry_parser::base_type(start)
+    {
+        using qi::uint_;
+        
+        start %=
+            uint_ >> ',' >>
+            uint_ >> ',' >>
+            uint_ >> ',' >>
+            uint_
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::gpgsv_entry()> start;
+};
+
+// untested
+template <typename Iterator>
+struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv(), qi::locals<unsigned int>>
+{
+    gpgsv_parser() : gpgsv_parser::base_type(start)
+    {
+        using qi::string;
+        using qi::uint_;
+        using qi::_a;
+        using qi::_1;
+        using qi::repeat;
+        using qi::uint_parser;
+
+        start %=
+            string("$GPGSV") >> ',' >> // message id
+            uint_ >> ',' >> // number of messages
+            uint_ >> ',' >> // message number
+            uint_[_a = _1] >> ',' >> // satellites in view
+            repeat(_a)[entry_ >> ','] >> ',' >> // satellites
+            '*' >> uint_parser<unsigned int, 10, 2, 2>() // checksum
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::gpgsv(), qi::locals<unsigned int>> start;
+    gpgsv_entry_parser<Iterator> entry_;
+};
+
+// untested
+template <typename Iterator>
+struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
+{
+    gprmc_parser() : gprmc_parser::base_type(start)
+    {
+        using qi::string;
+        using qi::float_;
+        using qi::uint_parser;
+
+        start %=
+            string("$GPRMC") >> ',' >> // message id
+            time_ >> ',' >> // UTC time
+            latitude_ >> ',' >> // Latitude
+            longitude_ >> ','>> // Longitude
+            float_ >> ',' >> // speed over ground
+            float_ >> ',' >> // course over ground
+            date_ >> ',' >> // UT date
+            position_system_mode_indicator_ >> ','  >> // position system mode indicator
+            '*' >> uint_parser<unsigned int, 10, 2, 2>() // checksum
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::gprmc()> start;
+    utc_time_parser<Iterator>  time_;
+    latitude_parser<Iterator> latitude_;
+    longitude_parser<Iterator> longitude_;
+    ut_date_parser<Iterator> date_;
+    position_system_mode_indicator_parser position_system_mode_indicator_;
+};
+
+// untested
+template <typename Iterator>
+struct gpvtg_parser : qi::grammar<Iterator, nmea::parse::gpvtg()>
+{
+    gpvtg_parser() : gpvtg_parser::base_type(start)
+    {
+        using qi::string;
+        using qi::float_;
+        using qi::uint_parser;
+        
+        start %=
+            string("$GPVTG") >> ',' >> // message id
+            float_ >> ',' >> // course over ground true
+            float_ >> ',' >> // course over ground magnetic
+            float_ >> ',' >> // ground speed knots
+            float_ >> ',' >> // ground speed kmph
+            position_system_mode_indicator_ >> ',' >> // position system mode indicator
+            '*' >> uint_parser<unsigned int, 10, 2, 2>() // checksum
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::gpvtg()> start;
+    position_system_mode_indicator_parser position_system_mode_indicator_;
+};
+
+template <typename Iterator>
+struct nmea_parser : qi::grammar<Iterator, nmea::parse::nmea_message()>
+{
+    nmea_parser() : nmea_parser::base_type(start)
+    {
+        start %=
+            gpgga_ |
+            gpgll_ |
+            gpgsv_ |
+            gprmc_ |
+            gpvtg_
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::nmea_message()> start;
+    
+    gpgga_parser<Iterator> gpgga_;
+    gpgll_parser<Iterator> gpgll_;
+    gpgsv_parser<Iterator> gpgsv_;
+    gprmc_parser<Iterator> gprmc_;
+    gpvtg_parser<Iterator> gpvtg_;
+};
+
+
 } // namespace nmea::parse
 
 int main(int argc, char *argv[])
@@ -334,15 +616,14 @@ int main(int argc, char *argv[])
     }
     
     std::string sample = "$GPGGA,161229.487,3723.2475,N,12158.3416,W,1,07,1.0,9.0,M,,,,0000*18";
-    using boost::spirit::ascii::space;
     typedef std::string::const_iterator iterator_type;
-    typedef nmea::parse::gpgga_parser<iterator_type> gpgga_parser;
-    gpgga_parser p;
+    typedef nmea::parse::nmea_parser<iterator_type> nmea_parser;
+    nmea_parser p;
 
     bool win = false;
 
     for (unsigned long i = 0; i < num_samples; ++i) {
-        nmea::parse::gpgga msg;
+        nmea::parse::nmea_message msg;
         std::string::const_iterator iter = sample.begin();
         std::string::const_iterator end = sample.end();
         win = parse(iter, end, p, msg);
