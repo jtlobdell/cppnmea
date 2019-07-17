@@ -3,7 +3,7 @@ C++ lib for parsing and handling NMEA messages. Very early development.
 It uses Boost Spirit for parsing. Because of this, compiling is quite resource-intensive.
 I tried building it on a Raspberry Pi Zero and ran out of memory. Oops! Now I'm using a cross compiler.
 
-Despite that, 
+Despite that, I think it will end up being blazing fast.
 
 A benchmark on my Raspberry Pi Zero after the first commit:
 
@@ -28,3 +28,12 @@ very nice!
 ```
 
 Seems promising!
+
+
+---
+
+Current results on my sample data with commit a321c2f:
+
+succeeded: 744
+failed: 372
+
