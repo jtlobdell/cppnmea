@@ -9,6 +9,8 @@
 #include <vector>
 #include <string>
 #include <complex>
+#include <fstream>
+#include <boost/algorithm/string.hpp>
 
 namespace nmea::parse {
 
@@ -44,10 +46,9 @@ enum class data_status_t {
 };
 
 struct utc_time_t {
-    unsigned int hh;
-    unsigned int mm;
-    unsigned int ss;
-    unsigned int sss;
+    unsigned int hours;
+    unsigned int minutes;
+    float seconds;
 };
 
 struct ut_date_t {
@@ -57,16 +58,14 @@ struct ut_date_t {
 };
 
 struct latitude_t {
-    unsigned int dd;
-    unsigned int mm;
-    unsigned int mmmm;
+    unsigned int degrees;
+    float minutes;
     latitude_direction_t dir;
 };
 
 struct longitude_t {
-    unsigned int ddd;
-    unsigned int mm;
-    unsigned int mmmm;
+    unsigned int degrees;
+    float minutes;
     longitude_direction_t dir;
 };
 
@@ -153,10 +152,9 @@ nmea_message;
 
 BOOST_FUSION_ADAPT_STRUCT(
     nmea::parse::utc_time_t,
-    (unsigned int, hh)
-    (unsigned int, mm)
-    (unsigned int, ss)
-    (unsigned int, sss)
+    (unsigned int, hours)
+    (unsigned int, minutes)
+    (float, seconds)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -168,17 +166,15 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     nmea::parse::latitude_t,
-    (unsigned int, dd)
-    (unsigned int, mm)
-    (unsigned int, mmmm)
+    (unsigned int, degrees)
+    (float, minutes)
     (nmea::parse::latitude_direction_t, dir)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
     nmea::parse::longitude_t,
-    (unsigned int, ddd)
-    (unsigned int, mm)
-    (unsigned int, mmmm)
+    (unsigned int, degrees)
+    (float, minutes)
     (nmea::parse::longitude_direction_t, dir)
 )
 
@@ -327,14 +323,13 @@ struct utc_time_parser : qi::grammar<Iterator, nmea::parse::utc_time_t()>
     utc_time_parser() : utc_time_parser::base_type(start)
     {
         using qi::uint_parser;
+        using qi::float_;
         
         start %= // hhmmss.sss
             uint_parser<unsigned int, 10, 2, 2>() >>
             uint_parser<unsigned int, 10, 2, 2>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            '.' >>
-            uint_parser<unsigned int, 10, 3, 3>()
-            ;        
+            float_
+            ;
     }
 
     qi::rule<Iterator, nmea::parse::utc_time_t()> start;
@@ -363,14 +358,13 @@ struct latitude_parser : qi::grammar<Iterator, nmea::parse::latitude_t()>
     latitude_parser() : latitude_parser::base_type(start)
     {
         using qi::uint_parser;
+        using qi::float_;
         
-        start %= // ddmm.mmmm,[N/S indicator]
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            '.' >>
-            uint_parser<unsigned int, 10, 4, 4>() >>
+        start %=
+            uint_parser<unsigned int, 10, 2, 2>() >> // 2-digit degrees
+            float_ >>  // float minutes
             ',' >>
-            latitude_direction_
+            latitude_direction_ // n/s indicator
             ;        
     };
 
@@ -384,19 +378,33 @@ struct longitude_parser : qi::grammar<Iterator, nmea::parse::longitude_t()>
     longitude_parser() : longitude_parser::base_type(start)
     {
         using qi::uint_parser;
+        using qi::float_;
 
-        start %= // dddmm.mmmm,[E/W indicator]
-            uint_parser<unsigned int, 10, 3, 3>() >>
-            uint_parser<unsigned int, 10, 2, 2>() >>
-            '.' >>
-            uint_parser<unsigned int, 10, 4, 4>() >>
+        start %=
+            uint_parser<unsigned int, 10, 3, 3>() >> // 3-digit degrees
+            float_ >> // float minutes
             ',' >>
-            longitude_direction_
+            longitude_direction_ // e/w indicator
             ;
     }
 
     qi::rule<Iterator, nmea::parse::longitude_t()> start;
     longitude_direction_parser longitude_direction_;
+};
+
+typedef qi::uint_parser<unsigned int, 16, 2, 2> checksum;
+
+template <typename Iterator>
+struct checksum_parser : qi::grammar<Iterator, unsigned int()>
+{
+    checksum_parser() : checksum_parser::base_type(start)
+    {
+        using qi::uint_parser;
+
+        start %=
+            uint_parser<unsigned int, 16, 2, 2>();
+    }
+    qi::rule<Iterator, unsigned int()> start;
 };
 
 template <typename Iterator>
@@ -427,8 +435,8 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
             -(float_) >> ',' >> // Geoid separation
             -(char_('M')) >> ',' >> // units
             -(float_) >> ',' >> // age of diff. corr. (null fields when dgps is not used)
-            uint_ >> '*' >> // diff. ref. station id
-            uint_parser<unsigned int, 16, 2, 2>() // checksum
+            uint_ >> // diff. ref. station id
+            '*' >> checksum_
             ;
     }
 
@@ -437,6 +445,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;    
     position_fix_indicator_parser position_fix_indicator_;
+    checksum_parser<Iterator> checksum_;
 };
 
 template <typename Iterator>
@@ -459,8 +468,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::parse::gpgll()>
             utc_time_ >> ',' >>
             data_status_ >> ',' >>
             position_system_mode_indicator_ >>
-            '*' >>
-            uint_parser<unsigned int, 16, 2, 2>() // checksum
+            '*' >> checksum_
             ;
     }
     
@@ -470,6 +478,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::parse::gpgll()>
     utc_time_parser<Iterator> utc_time_;
     data_status_parser data_status_;
     position_system_mode_indicator_parser position_system_mode_indicator_;
+    checksum_parser<Iterator> checksum_;
 };
 
 // untested
@@ -481,10 +490,10 @@ struct gpgsv_entry_parser : qi::grammar<Iterator, nmea::parse::gpgsv_entry()>
         using qi::uint_;
         
         start %=
-            uint_ >> ',' >>
-            uint_ >> ',' >>
-            uint_ >> ',' >>
-            uint_
+            uint_ >> ',' >> // satellite id
+            uint_ >> ',' >> // azimuth
+            uint_ >> ',' >> // elevation
+            -(uint_) // signal to noise ratio, null when not tracking
             ;
     }
 
@@ -493,14 +502,12 @@ struct gpgsv_entry_parser : qi::grammar<Iterator, nmea::parse::gpgsv_entry()>
 
 // untested
 template <typename Iterator>
-struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv(), qi::locals<unsigned int>>
+struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv()>
 {
     gpgsv_parser() : gpgsv_parser::base_type(start)
     {
         using qi::string;
         using qi::uint_;
-        using qi::_a;
-        using qi::_1;
         using qi::repeat;
         using qi::uint_parser;
 
@@ -508,14 +515,15 @@ struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv(), qi::locals<uns
             string("$GPGSV") >> ',' >> // message id
             uint_ >> ',' >> // number of messages
             uint_ >> ',' >> // message number
-            uint_[_a = _1] >> ',' >> // satellites in view
-            repeat(_a)[entry_ >> ','] >> ',' >> // satellites
-            '*' >> uint_parser<unsigned int, 10, 2, 2>() // checksum
+            uint_ >> // satellites in view
+            repeat(1, 4)[',' >> entry_]  >> // satellites
+            '*' >> checksum_ // checksum
             ;
     }
 
-    qi::rule<Iterator, nmea::parse::gpgsv(), qi::locals<unsigned int>> start;
+    qi::rule<Iterator, nmea::parse::gpgsv()> start;    
     gpgsv_entry_parser<Iterator> entry_;
+    checksum_parser<Iterator> checksum_;
 };
 
 // untested
@@ -537,7 +545,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
             float_ >> ',' >> // course over ground
             date_ >> ',' >> // UT date
             position_system_mode_indicator_ >> ','  >> // position system mode indicator
-            '*' >> uint_parser<unsigned int, 10, 2, 2>() // checksum
+            '*' >> checksum_ // checksum
             ;
     }
 
@@ -547,6 +555,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
     longitude_parser<Iterator> longitude_;
     ut_date_parser<Iterator> date_;
     position_system_mode_indicator_parser position_system_mode_indicator_;
+    checksum_parser<Iterator> checksum_;
 };
 
 // untested
@@ -566,7 +575,7 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::parse::gpvtg()>
             float_ >> ',' >> // ground speed knots
             float_ >> ',' >> // ground speed kmph
             position_system_mode_indicator_ >> ',' >> // position system mode indicator
-            '*' >> uint_parser<unsigned int, 10, 2, 2>() // checksum
+            '*' >> uint_parser<unsigned int, 16, 2, 2>() // checksum
             ;
     }
 
@@ -602,36 +611,73 @@ struct nmea_parser : qi::grammar<Iterator, nmea::parse::nmea_message()>
 
 int main(int argc, char *argv[])
 {
-    unsigned long num_samples = 100;
+    unsigned long num_repeats = 1;
     if (argc == 2) {
         try {
-            num_samples = std::stoul(std::string(argv[1]));
+            num_repeats = std::stoul(std::string(argv[1]));
         } catch (std::invalid_argument&) {
-            std::cerr << "num_samples must be an unsigned long" << std::endl;
+            std::cerr << "num_repeats must be an unsigned long" << std::endl;
             return 1;
         } catch (std::out_of_range&) {
-            std::cerr << "num_sampels is out of range" << std::endl;
+            std::cerr << "num_repeats is out of range" << std::endl;
             return 1;
         }
     }
     
-    std::string sample = "$GPGGA,161229.487,3723.2475,N,12158.3416,W,1,07,1.0,9.0,M,,,,0000*18";
+    std::ifstream in("samples.txt");
+    std::vector<std::string> samples;
+    std::string line;
+
+    // store each line of samples.txt into samples vector
+    while (std::getline(in, line)) {
+        boost::trim_right(line);
+        if (line.size() > 0) {
+            samples.push_back(line);
+        }
+    }
+    
+    in.close();
+
     typedef std::string::const_iterator iterator_type;
     typedef nmea::parse::nmea_parser<iterator_type> nmea_parser;
     nmea_parser p;
 
-    bool win = false;
+    bool win = true;
 
-    for (unsigned long i = 0; i < num_samples; ++i) {
-        nmea::parse::nmea_message msg;
-        std::string::const_iterator iter = sample.begin();
-        std::string::const_iterator end = sample.end();
-        win = parse(iter, end, p, msg);
-        win &= (iter == end);
+    // repeat parsing all the samples num_repeats time (for benchmarking)
+    for (unsigned long i = 0; i < num_repeats; ++i) {
+
+        unsigned long successful_parses = 0;
+        unsigned long failed_parses = 0;
+        
+        // parse each sample. report failures.
+        for (std::string& sample: samples) {
+            nmea::parse::nmea_message msg;
+            std::string::const_iterator iter = sample.begin();
+            std::string::const_iterator end = sample.end();
+            bool parsed = parse(iter, end, p, msg);
+            bool at_end = (iter == end);
+
+            if (!(parsed && at_end)) {
+                std::cerr << "failure: " << sample << std::endl;
+                failed_parses++;
+            } else {
+                //std::cout << "huzzah! " << sample << std::endl;
+                successful_parses++;
+            }
+
+            win &= parsed;
+        }
+
+        std::cout << "succeeded: " << successful_parses << std::endl;
+        std::cout << "failed: " << failed_parses << std::endl;
+        
     }
 
     if (win) std::cout << "very nice!" << std::endl;
     else std::cout << "wah woo whoa!" << std::endl;
 
+
+    
     return 0;
 }
