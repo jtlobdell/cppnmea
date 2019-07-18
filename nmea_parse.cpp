@@ -82,7 +82,6 @@ struct longitude_t {
 
 // Global Positioning System Fix Data
 struct gpgga {
-    std::string message_id;
     utc_time_t time;
     latitude_t latitude;
     longitude_t longitude;
@@ -100,7 +99,6 @@ struct gpgga {
 
 // Geographic Position - Latitude / Longitude
 struct gpgll {
-    std::string message_id;
     latitude_t latitude;
     longitude_t longitude;
     utc_time_t time;
@@ -110,7 +108,6 @@ struct gpgll {
 };
 
 struct gpgsa {
-    std::string message_id;
     gsa_mode_t gsa_mode;
     gsa_fix_type_t gsa_fix_type;
     std::vector<unsigned int> satellites;
@@ -129,7 +126,6 @@ struct gpgsv_entry {
 
 // GNSS Satellites in View
 struct gpgsv {
-    std::string message_id;
     unsigned int number_of_messages;
     unsigned int message_number;
     unsigned int satellites_in_view;
@@ -139,7 +135,6 @@ struct gpgsv {
 
 // Recommended Minimum Specific GNSS Data
 struct gprmc {
-    std::string message_id;
     utc_time_t time;
     data_status_t data_status;
     latitude_t latitude;
@@ -153,7 +148,6 @@ struct gprmc {
 
 // Course Over Ground and Ground Speed
 struct gpvtg {
-    std::string message_id;
     float course_over_ground_true;
     float course_over_ground_magnetic;
     float ground_speed_knots;
@@ -204,7 +198,6 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     nmea::parse::gpgga,
-    (std::string, message_id)
     (nmea::parse::utc_time_t, time)
     (nmea::parse::latitude_t, latitude)
     (nmea::parse::longitude_t, longitude)
@@ -222,7 +215,6 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gpgll,
-    (std::string, message_id)
     (nmea::parse::latitude_t, latitude)
     (nmea::parse::longitude_t, longitude)
     (nmea::parse::utc_time_t, time)
@@ -233,7 +225,6 @@ BOOST_FUSION_ADAPT_STRUCT (
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gpgsa,
-    (std::string, message_id)
     (nmea::parse::gsa_mode_t, gsa_mode)
     (nmea::parse::gsa_fix_type_t, gsa_fix_type)
     (std::vector<unsigned int>, satellites)
@@ -253,7 +244,6 @@ BOOST_FUSION_ADAPT_STRUCT (
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gpgsv,
-    (std::string, message_id)
     (unsigned int, number_of_messages)
     (unsigned int, message_number)
     (unsigned int, satellites_in_view)
@@ -263,7 +253,7 @@ BOOST_FUSION_ADAPT_STRUCT (
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gprmc,
-    (std::string, message_id)
+    //(std::string, message_id)
     (nmea::parse::utc_time_t, time)
     (nmea::parse::data_status_t, data_status)
     (nmea::parse::latitude_t, latitude)
@@ -277,7 +267,6 @@ BOOST_FUSION_ADAPT_STRUCT (
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gpvtg,
-    (std::string, message_id)
     (float, course_over_ground_true)
     (float, course_over_ground_magnetic)
     (float, ground_speed_knots)
@@ -472,6 +461,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
 {
     gpgga_parser() : gpgga_parser::base_type(start)
     {
+        using qi::omit;
         using qi::string;
         using qi::char_;
         using qi::float_;
@@ -483,7 +473,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
         using ascii::space;
         
         start %=
-            string("$GPGGA") >> ',' >> // start -> $GPGGA
+            omit[string("$GPGGA")] >> ',' >> // start -> $GPGGA
             utc_time_ >> ',' >> // UTC time hhmmss.sss
             latitude_ >> ',' >> // latitude
             longitude_ >> ',' >> // longitude
@@ -513,6 +503,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::parse::gpgll()>
 {
     gpgll_parser() : gpgll_parser::base_type(start)
     {
+        using qi::omit;
         using qi::string;
         using qi::char_;
         using qi::float_;
@@ -522,7 +513,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::parse::gpgll()>
         using qi::_1;
         
         start %=
-            string("$GPGLL") >> ',' >>
+            omit[string("$GPGLL")] >> ',' >>
             latitude_ >> ',' >>
             longitude_ >> ',' >>
             utc_time_ >> ',' >>
@@ -546,13 +537,14 @@ struct gpgsa_parser : qi::grammar<Iterator, nmea::parse::gpgsa()>
 {
     gpgsa_parser() : gpgsa_parser::base_type(start)
     {
+        using qi::omit;
         using qi::string;
         using qi::float_;
         using qi::repeat;
         using qi::uint_parser;
         
         start %=
-            string("$GPGSA") >> ',' >>
+            omit[string("$GPGSA")] >> ',' >>
             gsa_mode_ >> ',' >>
             gsa_fix_type_ >> ',' >>
             repeat(12)[-(uint_parser<unsigned int, 10, 2, 2>()) >> ','] >> // list of 12 sats, some may be empty
@@ -592,13 +584,14 @@ struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv()>
 {
     gpgsv_parser() : gpgsv_parser::base_type(start)
     {
+        using qi::omit;
         using qi::string;
         using qi::uint_;
         using qi::repeat;
         using qi::uint_parser;
 
         start %=
-            string("$GPGSV") >> ',' >> // message id
+            omit[string("$GPGSV")] >> ',' >> // message id
             uint_ >> ',' >> // number of messages
             uint_ >> ',' >> // message number
             uint_ >> // satellites in view
@@ -617,12 +610,13 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
 {
     gprmc_parser() : gprmc_parser::base_type(start)
     {
+        using qi::omit;
         using qi::string;
         using qi::float_;
         using qi::uint_parser;
 
         start %=
-            string("$GPRMC") >> ',' >> // message id
+            omit[string("$GPRMC")] >> ',' >> // message id
             time_ >> ',' >> // UTC time
             data_status_ >> ',' >> // data status
             latitude_ >> ',' >> // Latitude
@@ -651,12 +645,13 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::parse::gpvtg()>
 {
     gpvtg_parser() : gpvtg_parser::base_type(start)
     {
+        using qi::omit;
         using qi::string;
         using qi::float_;
         using qi::uint_parser;
         
         start %=
-            string("$GPVTG") >> ',' >> // message id
+            omit[string("$GPVTG")] >> ',' >> // message id
             -(float_) >> ',' >> 'T' >> ',' >> // course over ground true
             -(float_) >> ',' >> 'M' >> ',' >> // course over ground magnetic
             float_ >> ',' >> 'N' >> ',' >> // ground speed knots
@@ -733,6 +728,7 @@ int main(int argc, char *argv[])
 
     bool win = true;
     std::cout << "num samples: " << samples.size() << std::endl;
+    std::cout << "total lines parsed: " << num_repeats * samples.size() << std::endl;
 
     // repeat parsing all the samples num_repeats time (for benchmarking)
     for (unsigned long i = 0; i < num_repeats; ++i) {
