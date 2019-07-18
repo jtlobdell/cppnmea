@@ -5,13 +5,13 @@ I tried building it on a Raspberry Pi Zero and ran out of memory. Oops! Now I'm 
 
 Despite that, I think it will end up being blazing fast.
 
-A benchmark on my Raspberry Pi Zero after the first commit:
+A benchmark on my Raspberry Pi Zero (as of commit 9a9f246):
 
 ```
-john@raspberrypi ~ $ cat /proc/cpuinfo
+john@raspberrypi ~ $ cat /proc/cpuinfo 
 processor	: 0
 model name	: ARMv6-compatible processor rev 7 (v6l)
-BogoMIPS	: 697.95
+BogoMIPS	: 997.08
 Features	: half thumb fastmult vfp edsp java tls 
 CPU implementer	: 0x41
 CPU architecture: 7
@@ -22,19 +22,18 @@ CPU revision	: 7
 Hardware	: BCM2835
 Revision	: 9000c1
 Serial		: 00000000bc5a3643
-john@raspberrypi ~ $ time ./nmea_parse_O3 1000000
+john@raspberrypi ~ $ time ./nmea_parse_O2.rpi 1000
+num samples: 1116
+total lines parsed: 1116000
 very nice!
-./nmea_parse_O3 1000000  5.97s user 0.01s system 99% cpu 5.988 total
+./nmea_parse_O2.rpi 1000  12.70s user 0.01s system 99% cpu 12.733 total
+
 ```
 
-Seems promising!
-
+In this particular case it averaged 11.4us per sample.
 
 ---
 
-Current results on my sample data with commit a321c2f:
+The parser now succeeds in parsing all of my samples. This doesn't necessarily mean it is correct.
 
-```
-succeeded: 744
-failed: 372
-```
+It does not yet do anything with the parsed data. (to-do)
