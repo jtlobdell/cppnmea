@@ -40,6 +40,17 @@ enum class position_system_mode_indicator_t {
     invalid
 };
 
+enum class gsa_mode_t {
+    manual,
+    automatic
+};
+
+enum class gsa_fix_type_t {
+    unavailable,
+    _2d,
+    _3d
+};
+
 enum class data_status_t {
     valid,
     invalid
@@ -98,6 +109,17 @@ struct gpgll {
     unsigned int checksum;
 };
 
+struct gpgsa {
+    std::string message_id;
+    gsa_mode_t gsa_mode;
+    gsa_fix_type_t gsa_fix_type;
+    std::vector<unsigned int> satellites;
+    float dilution_of_precision;
+    float horizontal_dilution_of_precision;
+    float vertical_dilution_of_precision;
+    unsigned int checksum;
+};
+
 struct gpgsv_entry {
     unsigned int satellite_id_number;
     unsigned int elevation;
@@ -119,6 +141,7 @@ struct gpgsv {
 struct gprmc {
     std::string message_id;
     utc_time_t time;
+    data_status_t data_status;
     latitude_t latitude;
     longitude_t longitude;
     float speed_over_ground;
@@ -142,6 +165,7 @@ struct gpvtg {
 typedef boost::variant<
     nmea::parse::gpgga,
     nmea::parse::gpgll,
+    nmea::parse::gpgsa,
     nmea::parse::gpgsv,
     nmea::parse::gprmc,
     nmea::parse::gpvtg
@@ -208,6 +232,18 @@ BOOST_FUSION_ADAPT_STRUCT (
 )
 
 BOOST_FUSION_ADAPT_STRUCT (
+    nmea::parse::gpgsa,
+    (std::string, message_id)
+    (nmea::parse::gsa_mode_t, gsa_mode)
+    (nmea::parse::gsa_fix_type_t, gsa_fix_type)
+    (std::vector<unsigned int>, satellites)
+    (float, dilution_of_precision)
+    (float, horizontal_dilution_of_precision)
+    (float, vertical_dilution_of_precision)
+    (unsigned int, checksum)
+)
+
+BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gpgsv_entry,
     (unsigned int, satellite_id_number)
     (unsigned int, elevation)
@@ -229,6 +265,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     nmea::parse::gprmc,
     (std::string, message_id)
     (nmea::parse::utc_time_t, time)
+    (nmea::parse::data_status_t, data_status)
     (nmea::parse::latitude_t, latitude)
     (nmea::parse::longitude_t, longitude)
     (float, speed_over_ground)
@@ -313,6 +350,29 @@ struct position_system_mode_indicator_parser : qi::symbols<char, position_system
             ("E", position_system_mode_indicator_t::estimated)
             ("M", position_system_mode_indicator_t::manual)
             ("N", position_system_mode_indicator_t::invalid)
+            ;
+    }
+};
+
+struct gsa_mode_parser : qi::symbols<char, gsa_mode_t>
+{
+    gsa_mode_parser()
+    {
+        add
+            ("M", gsa_mode_t::manual)
+            ("A", gsa_mode_t::automatic)
+            ;
+    }
+};
+
+struct gsa_fix_type_parser : qi::symbols<char, gsa_fix_type_t>
+{
+    gsa_fix_type_parser()
+    {
+        add
+            ("1", gsa_fix_type_t::unavailable)
+            ("2", gsa_fix_type_t::_2d)
+            ("3", gsa_fix_type_t::_3d)
             ;
     }
 };
@@ -481,7 +541,34 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::parse::gpgll()>
     checksum_parser<Iterator> checksum_;
 };
 
-// untested
+template <typename Iterator>
+struct gpgsa_parser : qi::grammar<Iterator, nmea::parse::gpgsa()>
+{
+    gpgsa_parser() : gpgsa_parser::base_type(start)
+    {
+        using qi::string;
+        using qi::float_;
+        using qi::repeat;
+        using qi::uint_parser;
+        
+        start %=
+            string("$GPGSA") >> ',' >>
+            gsa_mode_ >> ',' >>
+            gsa_fix_type_ >> ',' >>
+            repeat(12)[-(uint_parser<unsigned int, 10, 2, 2>()) >> ','] >> // list of 12 sats, some may be empty
+            float_ >> ',' >> // dilution of precision, 0.5 through 99.9
+            float_ >> ',' >> // horizontal dilution of precision, 0.5 through 99.9
+            float_ >> // vertical dilution of precision, 0.5 through 99.9
+            '*' >> checksum_
+            ;
+    }
+
+    qi::rule<Iterator, nmea::parse::gpgsa()> start;
+    gsa_mode_parser gsa_mode_;
+    gsa_fix_type_parser gsa_fix_type_;
+    checksum_parser<Iterator> checksum_;
+};
+
 template <typename Iterator>
 struct gpgsv_entry_parser : qi::grammar<Iterator, nmea::parse::gpgsv_entry()>
 {
@@ -500,7 +587,6 @@ struct gpgsv_entry_parser : qi::grammar<Iterator, nmea::parse::gpgsv_entry()>
     qi::rule<Iterator, nmea::parse::gpgsv_entry()> start;
 };
 
-// untested
 template <typename Iterator>
 struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv()>
 {
@@ -526,7 +612,6 @@ struct gpgsv_parser : qi::grammar<Iterator, nmea::parse::gpgsv()>
     checksum_parser<Iterator> checksum_;
 };
 
-// untested
 template <typename Iterator>
 struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
 {
@@ -539,18 +624,21 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
         start %=
             string("$GPRMC") >> ',' >> // message id
             time_ >> ',' >> // UTC time
+            data_status_ >> ',' >> // data status
             latitude_ >> ',' >> // Latitude
             longitude_ >> ','>> // Longitude
             float_ >> ',' >> // speed over ground
-            float_ >> ',' >> // course over ground
+            -(float_) >> ',' >> // course over ground (blank?)
             date_ >> ',' >> // UT date
-            position_system_mode_indicator_ >> ','  >> // position system mode indicator
+            ',' >> ',' >> // magnetic variation float,dir (blank?)
+            position_system_mode_indicator_ >> // position system mode indicator
             '*' >> checksum_ // checksum
             ;
     }
 
     qi::rule<Iterator, nmea::parse::gprmc()> start;
     utc_time_parser<Iterator>  time_;
+    data_status_parser data_status_;
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;
     ut_date_parser<Iterator> date_;
@@ -558,7 +646,6 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::parse::gprmc()>
     checksum_parser<Iterator> checksum_;
 };
 
-// untested
 template <typename Iterator>
 struct gpvtg_parser : qi::grammar<Iterator, nmea::parse::gpvtg()>
 {
@@ -570,11 +657,11 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::parse::gpvtg()>
         
         start %=
             string("$GPVTG") >> ',' >> // message id
-            float_ >> ',' >> // course over ground true
-            float_ >> ',' >> // course over ground magnetic
-            float_ >> ',' >> // ground speed knots
-            float_ >> ',' >> // ground speed kmph
-            position_system_mode_indicator_ >> ',' >> // position system mode indicator
+            -(float_) >> ',' >> 'T' >> ',' >> // course over ground true
+            -(float_) >> ',' >> 'M' >> ',' >> // course over ground magnetic
+            float_ >> ',' >> 'N' >> ',' >> // ground speed knots
+            float_ >> ',' >> 'K' >> ',' >> // ground speed kmph
+            position_system_mode_indicator_ >> // position system mode indicator
             '*' >> uint_parser<unsigned int, 16, 2, 2>() // checksum
             ;
     }
@@ -591,6 +678,7 @@ struct nmea_parser : qi::grammar<Iterator, nmea::parse::nmea_message()>
         start %=
             gpgga_ |
             gpgll_ |
+            gpgsa_ |
             gpgsv_ |
             gprmc_ |
             gpvtg_
@@ -601,6 +689,7 @@ struct nmea_parser : qi::grammar<Iterator, nmea::parse::nmea_message()>
     
     gpgga_parser<Iterator> gpgga_;
     gpgll_parser<Iterator> gpgll_;
+    gpgsa_parser<Iterator> gpgsa_;
     gpgsv_parser<Iterator> gpgsv_;
     gprmc_parser<Iterator> gprmc_;
     gpvtg_parser<Iterator> gpvtg_;
@@ -643,6 +732,7 @@ int main(int argc, char *argv[])
     nmea_parser p;
 
     bool win = true;
+    std::cout << "num samples: " << samples.size() << std::endl;
 
     // repeat parsing all the samples num_repeats time (for benchmarking)
     for (unsigned long i = 0; i < num_repeats; ++i) {
@@ -662,15 +752,14 @@ int main(int argc, char *argv[])
                 std::cerr << "failure: " << sample << std::endl;
                 failed_parses++;
             } else {
-                //std::cout << "huzzah! " << sample << std::endl;
                 successful_parses++;
             }
 
             win &= parsed;
         }
 
-        std::cout << "succeeded: " << successful_parses << std::endl;
-        std::cout << "failed: " << failed_parses << std::endl;
+        //std::cout << "succeeded: " << successful_parses << std::endl;
+        //std::cout << "failed: " << failed_parses << std::endl;
         
     }
 
