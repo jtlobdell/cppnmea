@@ -7,14 +7,28 @@
 
 namespace nmea {
 
-enum class latitude_direction_t {
+enum class direction_t {
     north,
-    south
-};
-
-enum class longitude_direction_t {
+    south,
     east,
     west
+};
+
+struct latitude_t {
+    unsigned int degrees;
+    float minutes;
+    direction_t dir;
+};
+
+struct longitude_t {
+    unsigned int degrees;
+    float minutes;
+    direction_t dir;
+};
+
+struct position_2d_t {
+    latitude_t latitude;
+    longitude_t longitude;
 };
 
 enum class fix_quality_t {
@@ -65,23 +79,10 @@ struct ut_date_t {
     unsigned int yy;
 };
 
-struct latitude_t {
-    unsigned int degrees;
-    float minutes;
-    latitude_direction_t dir;
-};
-
-struct longitude_t {
-    unsigned int degrees;
-    float minutes;
-    longitude_direction_t dir;
-};
-
 // Global Positioning System Fix Data
 struct gpgga {
     utc_time_t time;
-    latitude_t latitude;
-    longitude_t longitude;
+    position_2d_t pos_2d;
     fix_quality_t fix_quality;
     unsigned int sats_tracked;
     float hdop; // horizontal degree of precision

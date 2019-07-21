@@ -118,22 +118,23 @@ int main(int argc, char *argv[])
             auto& time = gga.time;
 
             std::cout << "time (utc): " << time.hours << ":" << time.minutes << ":" << time.seconds << std::endl;
-            
-            auto& lat = gga.latitude;
-            auto& lon = gga.longitude;
+
+            auto& pos = gga.pos_2d;
+            auto& lat = pos.latitude;
+            auto& lon = pos.longitude;
             
             std::cout << "latitude: " << lat.degrees << " degrees, " << lat.minutes << " minutes, ";
-            if (lat.dir == nmea::latitude_direction_t::north) {
+            if (lat.dir == nmea::direction_t::north) {
                 std::cout << " north";
-            } else if (lat.dir == nmea::latitude_direction_t::south) {
+            } else if (lat.dir == nmea::direction_t::south) {
                 std::cout << " south";
             }
             std::cout << std::endl;
 
             std::cout << "longitude: " << lon.degrees << " degrees, " << lon.minutes << " minutes, ";
-            if (lon.dir == nmea::longitude_direction_t::east) {
+            if (lon.dir == nmea::direction_t::east) {
                 std::cout << " east";
-            } else if (lon.dir == nmea::longitude_direction_t::west) {
+            } else if (lon.dir == nmea::direction_t::west) {
                 std::cout << " west";
             }
             std::cout << std::endl;

@@ -29,21 +29,26 @@ BOOST_FUSION_ADAPT_STRUCT(
     nmea::latitude_t,
     (unsigned int, degrees)
     (float, minutes)
-    (nmea::latitude_direction_t, dir)
+    (nmea::direction_t, dir)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
     nmea::longitude_t,
     (unsigned int, degrees)
     (float, minutes)
-    (nmea::longitude_direction_t, dir)
+    (nmea::direction_t, dir)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    nmea::position_2d_t,
+    (nmea::latitude_t, latitude)
+    (nmea::longitude_t, longitude)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
     nmea::gpgga,
     (nmea::utc_time_t, time)
-    (nmea::latitude_t, latitude)
-    (nmea::longitude_t, longitude)
+    (nmea::position_2d_t, pos_2d)
     (nmea::fix_quality_t, fix_quality)
     (unsigned int, sats_tracked)
     (float, hdop)
@@ -119,24 +124,15 @@ namespace nmea::parse {
 
 namespace qi = boost::spirit::qi;
 
-struct latitude_direction_parser : qi::symbols<char, nmea::latitude_direction_t>
+struct direction_parser : qi::symbols<char, nmea::direction_t>
 {
-    latitude_direction_parser()
+    direction_parser()
     {
         add
-            ("N", nmea::latitude_direction_t::north)
-            ("S", nmea::latitude_direction_t::south)
-            ;
-    }
-};
-
-struct longitude_direction_parser : qi::symbols<char, nmea::longitude_direction_t>
-{
-    longitude_direction_parser()
-    {
-        add
-            ("E", nmea::longitude_direction_t::east)
-            ("W", nmea::longitude_direction_t::west)
+            ("N", nmea::direction_t::north)
+            ("S", nmea::direction_t::south)
+            ("E", nmea::direction_t::east)
+            ("W", nmea::direction_t::west)
             ;
     }
 };
@@ -249,17 +245,19 @@ struct latitude_parser : qi::grammar<Iterator, nmea::latitude_t()>
     {
         using qi::uint_parser;
         using qi::float_;
-        
+        using qi::_pass;
+        using qi::_1;
+                
         start %=
             uint_parser<unsigned int, 10, 2, 2>() >> // 2-digit degrees
             float_ >>  // float minutes
             ',' >>
-            latitude_direction_ // n/s indicator
+            direction_[_pass = (_1 == nmea::direction_t::north || _1 == nmea::direction_t::south)]
             ;        
     };
 
     qi::rule<Iterator, nmea::latitude_t()> start;
-    latitude_direction_parser latitude_direction_;
+    direction_parser direction_;
 };
 
 template <typename Iterator>
@@ -269,17 +267,32 @@ struct longitude_parser : qi::grammar<Iterator, nmea::longitude_t()>
     {
         using qi::uint_parser;
         using qi::float_;
+        using qi::_pass;
+        using qi::_1;
 
         start %=
             uint_parser<unsigned int, 10, 3, 3>() >> // 3-digit degrees
             float_ >> // float minutes
             ',' >>
-            longitude_direction_ // e/w indicator
+            dir_[_pass = (_1 == nmea::direction_t::east || _1 == nmea::direction_t::west)]
             ;
     }
 
     qi::rule<Iterator, nmea::longitude_t()> start;
-    longitude_direction_parser longitude_direction_;
+    direction_parser dir_;
+};
+
+template <typename Iterator>
+struct position_2d_parser : qi::grammar<Iterator, nmea::position_2d_t()>
+{
+    position_2d_parser() : position_2d_parser::base_type(start)
+    {
+        start %= latitude_ >> ',' >> longitude_;
+    }
+    
+    qi::rule<Iterator, nmea::position_2d_t()> start;
+    latitude_parser<Iterator> latitude_;
+    longitude_parser<Iterator> longitude_;
 };
 
 typedef qi::uint_parser<unsigned int, 16, 2, 2> checksum;
@@ -313,8 +326,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::gpgga()>
         start %=
             lit("GGA") >> ',' >>
             utc_time_ >> ',' >>
-            latitude_ >> ',' >>
-            longitude_ >> ',' >>
+            position_2d_ >> ',' >>
             fix_quality_ >> ',' >>
             uint_[ _pass = (_1 >= 0 && _1 <= 12) ] >> ',' >> // number of satellites being tracked
             float_ >> ',' >> // horizontal dilution of precision
@@ -328,8 +340,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::gpgga()>
 
     qi::rule<Iterator, nmea::gpgga()> start;
     utc_time_parser<Iterator> utc_time_;
-    latitude_parser<Iterator> latitude_;
-    longitude_parser<Iterator> longitude_;
+    position_2d_parser<Iterator> position_2d_;
     fix_quality_parser fix_quality_;
     checksum_parser<Iterator> checksum_;
 };
