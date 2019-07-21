@@ -56,7 +56,7 @@ enum class gsa_fix_type_t {
 };
 
 enum class data_status_t {
-    valid,
+    active,
     invalid
 };
 
@@ -90,14 +90,12 @@ struct gpgga {
     latitude_t latitude;
     longitude_t longitude;
     fix_quality_t fix_quality;
-    unsigned int sats_used;
-    float hdop;
+    unsigned int sats_tracked;
+    float hdop; // horizontal degree of precision
     float msl_altitude; // mean sea level
-    char msl_alt_units;
-    float geoid_separation;
-    char geoid_units;
-    float age_of_diff_corr;
-    unsigned int diff_ref_station_id;
+    float geoid_separation; // height of geoid (MSL) above WGS84 ellipsoid
+    float time_since_dgps_update;
+    unsigned int dgps_station_id;
     unsigned int checksum;
 };
 
@@ -206,14 +204,12 @@ BOOST_FUSION_ADAPT_STRUCT(
     (nmea::parse::latitude_t, latitude)
     (nmea::parse::longitude_t, longitude)
     (nmea::parse::fix_quality_t, fix_quality)
-    (unsigned int, sats_used)
+    (unsigned int, sats_tracked)
     (float, hdop)
     (float, msl_altitude)
-    (char, msl_alt_units)
     (float, geoid_separation)
-    (char, geoid_units)
-    (float, age_of_diff_corr)
-    (unsigned int, diff_ref_station_id)
+    (float, time_since_dgps_update)
+    (unsigned int, dgps_station_id)
     (unsigned int, checksum)
 )
 
@@ -329,8 +325,8 @@ struct data_status_parser : qi::symbols<char, data_status_t>
     data_status_parser()
     {
         add
-            ("A", data_status_t::valid)
-            ("V", data_status_t::invalid)
+            ("A", data_status_t::active)
+            ("V", data_status_t::invalid) // actually 'void' but that is a keyword in C++
             ;
     }
 };
@@ -472,11 +468,8 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
         using qi::char_;
         using qi::float_;
         using qi::uint_;
-        using qi::uint_parser;
-        using qi::phrase_parse;
         using qi::_pass;
         using qi::_1;
-        using ascii::space;
         
         start %=
             omit[string("GGA")] >> ',' >>
