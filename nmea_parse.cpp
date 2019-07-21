@@ -800,6 +800,10 @@ int main(int argc, char *argv[])
                     std::cout << "simulation mode" << std::endl;
                     break;
             }
+
+            auto& time = gga.time;
+
+            std::cout << "time (utc): " << time.hours << ":" << time.minutes << ":" << time.seconds << std::endl;
             
             auto& lat = gga.latitude;
             auto& lon = gga.longitude;
@@ -852,19 +856,3 @@ int main(int argc, char *argv[])
     
     return 0;
 }
-
-/*
-struct gpgga {
-    utc_time_t time;
-    latitude_t latitude;
-    longitude_t longitude;
-    fix_quality_t fix_quality;
-    unsigned int sats_tracked;
-    float hdop; // horizontal degree of precision
-    float msl_altitude; // mean sea level
-    float geoid_separation; // height of geoid (MSL) above WGS84 ellipsoid
-    boost::optional<float> time_since_dgps_update;
-    boost::optional<unsigned int> dgps_station_id;
-    unsigned int checksum;
-};
-*/
