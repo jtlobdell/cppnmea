@@ -95,8 +95,7 @@ struct gpgga {
 
 // Geographic Position - Latitude / Longitude
 struct gpgll {
-    latitude_t latitude;
-    longitude_t longitude;
+    position_2d_t pos_2d;
     utc_time_t time;
     data_status_t data_status;
     position_system_mode_indicator_t position_system_mode_indicator;
@@ -133,8 +132,7 @@ struct gpgsv {
 struct gprmc {
     utc_time_t time;
     data_status_t data_status;
-    latitude_t latitude;
-    longitude_t longitude;
+    position_2d_t pos_2d;
     float speed_over_ground;
     float course_over_ground;
     ut_date_t date;

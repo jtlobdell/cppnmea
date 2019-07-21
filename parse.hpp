@@ -61,8 +61,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::gpgll,
-    (nmea::latitude_t, latitude)
-    (nmea::longitude_t, longitude)
+    (nmea::position_2d_t, pos_2d)
     (nmea::utc_time_t, time)
     (nmea::data_status_t, data_status)
     (nmea::position_system_mode_indicator_t, position_system_mode_indicator)
@@ -101,8 +100,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     nmea::gprmc,
     (nmea::utc_time_t, time)
     (nmea::data_status_t, data_status)
-    (nmea::latitude_t, latitude)
-    (nmea::longitude_t, longitude)
+    (nmea::position_2d_t, pos_2d)
     (float, speed_over_ground)
     (float, course_over_ground)
     (nmea::ut_date_t, date)
@@ -361,8 +359,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::gpgll()>
         
         start %=
             omit[string("GLL")] >> ',' >>
-            latitude_ >> ',' >>
-            longitude_ >> ',' >>
+            position_2d_ >> ',' >>
             utc_time_ >> ',' >>
             data_status_ >> ',' >>
             position_system_mode_indicator_ >>
@@ -371,8 +368,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::gpgll()>
     }
     
     qi::rule<Iterator, nmea::gpgll()> start;
-    latitude_parser<Iterator> latitude_;
-    longitude_parser<Iterator> longitude_;
+    position_2d_parser<Iterator> position_2d_;
     utc_time_parser<Iterator> utc_time_;
     data_status_parser data_status_;
     position_system_mode_indicator_parser position_system_mode_indicator_;
@@ -466,8 +462,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
             omit[string("RMC")] >> ',' >> // message id
             time_ >> ',' >> // UTC time
             data_status_ >> ',' >> // data status
-            latitude_ >> ',' >> // Latitude
-            longitude_ >> ','>> // Longitude
+            position_2d_ >> ',' >>
             float_ >> ',' >> // speed over ground
             -(float_) >> ',' >> // course over ground (blank?)
             date_ >> ',' >> // UT date
@@ -480,6 +475,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
     qi::rule<Iterator, nmea::gprmc()> start;
     utc_time_parser<Iterator>  time_;
     data_status_parser data_status_;
+    position_2d_parser<Iterator> position_2d_;
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;
     ut_date_parser<Iterator> date_;
