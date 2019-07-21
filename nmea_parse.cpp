@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     std::cout << "num samples: " << samples.size() << std::endl;
     std::cout << "total lines parsed: " << num_repeats * samples.size() << std::endl;
 
-    std::queue<nmea::nmea_message> messages;
+    std::queue<nmea::nmea_sentence> sentences;
 
     // repeat parsing all the samples num_repeats time (for benchmarking)
     for (unsigned long i = 0; i < num_repeats; ++i) {
@@ -56,10 +56,10 @@ int main(int argc, char *argv[])
         
         // parse each sample. report failures.
         for (std::string& sample: samples) {
-            nmea::nmea_message msg;
+            nmea::nmea_sentence sentence;
             std::string::const_iterator iter = sample.begin();
             std::string::const_iterator end = sample.end();
-            bool parsed = parse(iter, end, p, msg);
+            bool parsed = parse(iter, end, p, sentence);
             bool at_end = (iter == end);
 
             if (!(parsed && at_end)) {
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
                 failed_parses++;
             } else {
                 successful_parses++;
-                messages.push(msg);
+                sentences.push(sentence);
             }
 
             win &= parsed;
@@ -78,12 +78,12 @@ int main(int argc, char *argv[])
     else std::cout << "wah woo whoa!" << std::endl;
 
     // all done parsing, now do something with it
-    while (messages.size() > 0) {
-        nmea::nmea_message msg = messages.front();
-        messages.pop();
+    while (sentences.size() > 0) {
+        nmea::nmea_sentence sentence = sentences.front();
+        sentences.pop();
 
-        if (msg.type() == typeid(nmea::gpgga)) {
-            nmea::gpgga gga = boost::get<nmea::gpgga>(msg);
+        if (sentence.type() == typeid(nmea::gpgga)) {
+            nmea::gpgga gga = boost::get<nmea::gpgga>(sentence);
 
             switch (gga.fix_quality) {
                 case nmea::fix_quality_t::invalid:

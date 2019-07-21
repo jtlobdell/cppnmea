@@ -502,7 +502,7 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::gpvtg()>
 };
 
 template <typename Iterator>
-struct nmea_parser : qi::grammar<Iterator, nmea::nmea_message()>
+struct nmea_parser : qi::grammar<Iterator, nmea::nmea_sentence()>
 {
     nmea_parser() : nmea_parser::base_type(start)
     {
@@ -520,7 +520,7 @@ struct nmea_parser : qi::grammar<Iterator, nmea::nmea_message()>
             ;
     }
 
-    qi::rule<Iterator, nmea::nmea_message()> start;
+    qi::rule<Iterator, nmea::nmea_sentence()> start;
     
     gpgga_parser<Iterator> gpgga_;
     gpgll_parser<Iterator> gpgll_;

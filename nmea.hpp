@@ -159,7 +159,7 @@ typedef boost::variant<
     nmea::gprmc,
     nmea::gpvtg
     >
-nmea_message;
+nmea_sentence;
 
 
 } // namespace nmea
