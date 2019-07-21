@@ -11,6 +11,7 @@
 #include <complex>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
+#include <queue>
 
 namespace nmea::parse {
 
@@ -94,8 +95,8 @@ struct gpgga {
     float hdop; // horizontal degree of precision
     float msl_altitude; // mean sea level
     float geoid_separation; // height of geoid (MSL) above WGS84 ellipsoid
-    float time_since_dgps_update;
-    unsigned int dgps_station_id;
+    boost::optional<float> time_since_dgps_update;
+    boost::optional<unsigned int> dgps_station_id;
     unsigned int checksum;
 };
 
@@ -208,8 +209,8 @@ BOOST_FUSION_ADAPT_STRUCT(
     (float, hdop)
     (float, msl_altitude)
     (float, geoid_separation)
-    (float, time_since_dgps_update)
-    (unsigned int, dgps_station_id)
+    (boost::optional<float>, time_since_dgps_update)
+    (boost::optional<unsigned int>, dgps_station_id)
     (unsigned int, checksum)
 )
 
@@ -458,31 +459,31 @@ struct checksum_parser : qi::grammar<Iterator, unsigned int()>
     qi::rule<Iterator, unsigned int()> start;
 };
 
+
 template <typename Iterator>
 struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
 {
     gpgga_parser() : gpgga_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
-        using qi::char_;
+        using qi::lit;
         using qi::float_;
         using qi::uint_;
         using qi::_pass;
         using qi::_1;
+        using qi::hold;
         
         start %=
-            omit[string("GGA")] >> ',' >>
+            lit("GGA") >> ',' >>
             utc_time_ >> ',' >>
             latitude_ >> ',' >>
             longitude_ >> ',' >>
             fix_quality_ >> ',' >>
             uint_[ _pass = (_1 >= 0 && _1 <= 12) ] >> ',' >> // number of satellites being tracked
             float_ >> ',' >> // horizontal dilution of precision
-            float_ >> ',' >> char_('M') >> ',' >> // MSL (mean sea level) altitude, meters
-            -(float_) >> ',' >> -(char_('M')) >> ',' // height of geoid (MSL) above WGS84 ellipsoid
-            -(float_) >> ',' >> // time since last DGPS update (empty if no using DGPS)
-            uint_ >> // DGPS station ID number
+            float_ >> ',' >> 'M' >> ',' >> // MSL (mean sea level) altitude, meters
+            float_ >> ',' >> 'M' >> ',' >> // height of geoid (MSL) above WGS84 ellipsoid
+            -float_ >> ',' >> // time since last DGPS update (empty if no using DGPS)
+            -uint_ >> // DGPS station ID number
             '*' >> checksum_
             ;
     }
@@ -731,6 +732,8 @@ int main(int argc, char *argv[])
     std::cout << "num samples: " << samples.size() << std::endl;
     std::cout << "total lines parsed: " << num_repeats * samples.size() << std::endl;
 
+    std::queue<nmea::parse::nmea_message> messages;
+
     // repeat parsing all the samples num_repeats time (for benchmarking)
     for (unsigned long i = 0; i < num_repeats; ++i) {
 
@@ -750,20 +753,118 @@ int main(int argc, char *argv[])
                 failed_parses++;
             } else {
                 successful_parses++;
+                messages.push(msg);
             }
 
             win &= parsed;
         }
-
-        //std::cout << "succeeded: " << successful_parses << std::endl;
-        //std::cout << "failed: " << failed_parses << std::endl;
-        
     }
 
     if (win) std::cout << "very nice!" << std::endl;
     else std::cout << "wah woo whoa!" << std::endl;
 
+    // all done parsing, now do something with it
+    while (messages.size() > 0) {
+        nmea::parse::nmea_message msg = messages.front();
+        messages.pop();
 
+        if (msg.type() == typeid(nmea::parse::gpgga)) {
+            nmea::parse::gpgga gga = boost::get<nmea::parse::gpgga>(msg);
+
+            switch (gga.fix_quality) {
+                case nmea::parse::fix_quality_t::invalid:
+                    std::cout << "invalid fix" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::gps_fix:
+                    std::cout << "gps fix" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::dgps_fix:
+                    std::cout << "dgps fix" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::pps_fix:
+                    std::cout << "pps fix" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::real_time_kinematic:
+                    std::cout << "real time kinematic" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::float_rtk:
+                    std::cout << "float real time kinematic" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::dead_reckoning:
+                    std::cout << "dead reckoning" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::manual_input_mode:
+                    std::cout << "manual input mode" << std::endl;
+                    break;
+                case nmea::parse::fix_quality_t::simulation_mode:
+                    std::cout << "simulation mode" << std::endl;
+                    break;
+            }
+            
+            auto& lat = gga.latitude;
+            auto& lon = gga.longitude;
+            
+            std::cout << "latitude: " << lat.degrees << " degrees, " << lat.minutes << " minutes, ";
+            if (lat.dir == nmea::parse::latitude_direction_t::north) {
+                std::cout << " north";
+            } else if (lat.dir == nmea::parse::latitude_direction_t::south) {
+                std::cout << " south";
+            }
+            std::cout << std::endl;
+
+            std::cout << "longitude: " << lon.degrees << " degrees, " << lon.minutes << " minutes, ";
+            if (lon.dir == nmea::parse::longitude_direction_t::east) {
+                std::cout << " east";
+            } else if (lon.dir == nmea::parse::longitude_direction_t::west) {
+                std::cout << " west";
+            }
+            std::cout << std::endl;
+
+            std::cout << "num sats tracked: " << gga.sats_tracked << std::endl;
+            std::cout << "horizontal degree of precision: " << gga.hdop << std::endl;
+            std::cout << "altitude (MSL): " << gga.msl_altitude << std::endl;
+            std::cout << "geoid separation (M): " << gga.geoid_separation << std::endl;
+
+            std::cout << "time since last dgps update: ";
+            if (gga.time_since_dgps_update == boost::none) {
+                std::cout << "null";
+            } else {
+                std::cout << *gga.time_since_dgps_update;
+            }
+            std::cout << std::endl;
+
+            std::cout << "station id: ";
+            if (gga.dgps_station_id == boost::none) {
+                std::cout << "null";
+            } else {
+                std::cout << *gga.dgps_station_id;
+            }
+            std::cout << std::endl;
+
+            std::cout << "checksum: " << gga.checksum << std::endl;
+
+        } else {
+            continue;
+        }
+
+        std::cout << "-------------------------------------------" << std::endl;
+    }
     
     return 0;
 }
+
+/*
+struct gpgga {
+    utc_time_t time;
+    latitude_t latitude;
+    longitude_t longitude;
+    fix_quality_t fix_quality;
+    unsigned int sats_tracked;
+    float hdop; // horizontal degree of precision
+    float msl_altitude; // mean sea level
+    float geoid_separation; // height of geoid (MSL) above WGS84 ellipsoid
+    boost::optional<float> time_since_dgps_update;
+    boost::optional<unsigned int> dgps_station_id;
+    unsigned int checksum;
+};
+*/
