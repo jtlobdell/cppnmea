@@ -24,12 +24,16 @@ enum class longitude_direction_t {
     west
 };
 
-enum class position_fix_indicator_t {
+enum class fix_quality_t {
     invalid,
-    gps_sps_mode,
-    differential_gps_sps_mode,
+    gps_fix,
+    dgps_fix,
+    pps_fix,
+    real_time_kinematic,
+    float_rtk,
     dead_reckoning,
-    unsupported
+    manual_input_mode,
+    simulation_mode
 };
 
 enum class position_system_mode_indicator_t {
@@ -85,7 +89,7 @@ struct gpgga {
     utc_time_t time;
     latitude_t latitude;
     longitude_t longitude;
-    position_fix_indicator_t position_fix_indicator;
+    fix_quality_t fix_quality;
     unsigned int sats_used;
     float hdop;
     float msl_altitude; // mean sea level
@@ -201,7 +205,7 @@ BOOST_FUSION_ADAPT_STRUCT(
     (nmea::parse::utc_time_t, time)
     (nmea::parse::latitude_t, latitude)
     (nmea::parse::longitude_t, longitude)
-    (nmea::parse::position_fix_indicator_t, position_fix_indicator)
+    (nmea::parse::fix_quality_t, fix_quality)
     (unsigned int, sats_used)
     (float, hdop)
     (float, msl_altitude)
@@ -302,18 +306,20 @@ struct longitude_direction_parser : qi::symbols<char, longitude_direction_t>
     }
 };
 
-struct position_fix_indicator_parser : qi::symbols<char, position_fix_indicator_t>
+struct fix_quality_parser : qi::symbols<char, fix_quality_t>
 {
-    position_fix_indicator_parser()
+    fix_quality_parser()
     {
         add
-            ("0", position_fix_indicator_t::invalid)
-            ("1", position_fix_indicator_t::gps_sps_mode)
-            ("2", position_fix_indicator_t::differential_gps_sps_mode)
-            ("3", position_fix_indicator_t::unsupported)
-            ("4", position_fix_indicator_t::unsupported)
-            ("5", position_fix_indicator_t::unsupported)
-            ("6", position_fix_indicator_t::dead_reckoning)
+            ("0", fix_quality_t::invalid)
+            ("1", fix_quality_t::gps_fix)
+            ("2", fix_quality_t::dgps_fix)
+            ("3", fix_quality_t::pps_fix)
+            ("4", fix_quality_t::real_time_kinematic)
+            ("5", fix_quality_t::float_rtk)
+            ("6", fix_quality_t::dead_reckoning)
+            ("7", fix_quality_t::manual_input_mode)
+            ("8", fix_quality_t::simulation_mode)
             ;
     }
 };
@@ -473,19 +479,17 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
         using ascii::space;
         
         start %=
-            omit[string("GGA")] >> ',' >> // start -> $GPGGA
-            utc_time_ >> ',' >> // UTC time hhmmss.sss
-            latitude_ >> ',' >> // latitude
-            longitude_ >> ',' >> // longitude
-            position_fix_indicator_ >> ',' >> // Position fix indicator
-            uint_[ _pass = (_1 >= 0 && _1 <= 12) ] >> ',' >> // satellites used
+            omit[string("GGA")] >> ',' >>
+            utc_time_ >> ',' >>
+            latitude_ >> ',' >>
+            longitude_ >> ',' >>
+            fix_quality_ >> ',' >>
+            uint_[ _pass = (_1 >= 0 && _1 <= 12) ] >> ',' >> // number of satellites being tracked
             float_ >> ',' >> // horizontal dilution of precision
-            float_ >> ',' >> // MSL altitude (mean sea level)
-            char_('M') >> ',' >> // units (could this ever be different?)
-            -(float_) >> ',' >> // Geoid separation
-            -(char_('M')) >> ',' >> // units
-            -(float_) >> ',' >> // age of diff. corr. (null fields when dgps is not used)
-            uint_ >> // diff. ref. station id
+            float_ >> ',' >> char_('M') >> ',' >> // MSL (mean sea level) altitude, meters
+            -(float_) >> ',' >> -(char_('M')) >> ',' // height of geoid (MSL) above WGS84 ellipsoid
+            -(float_) >> ',' >> // time since last DGPS update (empty if no using DGPS)
+            uint_ >> // DGPS station ID number
             '*' >> checksum_
             ;
     }
@@ -494,7 +498,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::parse::gpgga()>
     utc_time_parser<Iterator> utc_time_;
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;    
-    position_fix_indicator_parser position_fix_indicator_;
+    fix_quality_parser fix_quality_;
     checksum_parser<Iterator> checksum_;
 };
 
