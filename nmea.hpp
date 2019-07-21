@@ -43,7 +43,7 @@ enum class fix_quality_t {
     simulation_mode
 };
 
-enum class position_system_mode_indicator_t {
+enum class fix_mode_t {
     autonomous,
     differential,
     estimated,
@@ -98,7 +98,7 @@ struct gpgll {
     position_2d_t pos_2d;
     utc_time_t time;
     data_status_t data_status;
-    position_system_mode_indicator_t position_system_mode_indicator;
+    fix_mode_t fix_mode;
     unsigned int checksum;
 };
 
@@ -136,7 +136,7 @@ struct gprmc {
     float speed_over_ground;
     float course_over_ground;
     ut_date_t date;
-    position_system_mode_indicator_t position_system_mode_indicator;
+    fix_mode_t fix_mode;
     unsigned int checksum;
 };
 
@@ -146,7 +146,7 @@ struct gpvtg {
     float course_over_ground_magnetic;
     float ground_speed_knots;
     float ground_speed_kmph;
-    position_system_mode_indicator_t position_system_mode_indicator;
+    fix_mode_t fix_mode;
     unsigned int checksum;
 };
 

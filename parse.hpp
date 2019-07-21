@@ -64,7 +64,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     (nmea::position_2d_t, pos_2d)
     (nmea::utc_time_t, time)
     (nmea::data_status_t, data_status)
-    (nmea::position_system_mode_indicator_t, position_system_mode_indicator)
+    (nmea::fix_mode_t, fix_mode)
     (unsigned int, checksum)
 )
 
@@ -104,7 +104,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     (float, speed_over_ground)
     (float, course_over_ground)
     (nmea::ut_date_t, date)
-    (nmea::position_system_mode_indicator_t, position_system_mode_indicator)
+    (nmea::fix_mode_t, fix_mode)
     (unsigned int, checksum)
 )
 
@@ -114,7 +114,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     (float, course_over_ground_magnetic)
     (float, ground_speed_knots)
     (float, ground_speed_kmph)
-    (nmea::position_system_mode_indicator_t, position_system_mode_indicator)
+    (nmea::fix_mode_t, fix_mode)
     (unsigned int, checksum)
 )
 
@@ -164,16 +164,16 @@ struct data_status_parser : qi::symbols<char, nmea::data_status_t>
     }
 };
 
-struct position_system_mode_indicator_parser : qi::symbols<char, nmea::position_system_mode_indicator_t>
+struct fix_mode_parser : qi::symbols<char, nmea::fix_mode_t>
 {
-    position_system_mode_indicator_parser()
+    fix_mode_parser()
     {
         add
-            ("A", nmea::position_system_mode_indicator_t::autonomous)
-            ("D", nmea::position_system_mode_indicator_t::differential)
-            ("E", nmea::position_system_mode_indicator_t::estimated)
-            ("M", nmea::position_system_mode_indicator_t::manual)
-            ("N", nmea::position_system_mode_indicator_t::invalid)
+            ("A", nmea::fix_mode_t::autonomous)
+            ("D", nmea::fix_mode_t::differential)
+            ("E", nmea::fix_mode_t::estimated)
+            ("M", nmea::fix_mode_t::manual)
+            ("N", nmea::fix_mode_t::invalid)
             ;
     }
 };
@@ -362,7 +362,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::gpgll()>
             position_2d_ >> ',' >>
             utc_time_ >> ',' >>
             data_status_ >> ',' >>
-            position_system_mode_indicator_ >>
+            fix_mode_ >>
             '*' >> checksum_
             ;
     }
@@ -371,7 +371,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::gpgll()>
     position_2d_parser<Iterator> position_2d_;
     utc_time_parser<Iterator> utc_time_;
     data_status_parser data_status_;
-    position_system_mode_indicator_parser position_system_mode_indicator_;
+    fix_mode_parser fix_mode_;
     checksum_parser<Iterator> checksum_;
 };
 
@@ -467,7 +467,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
             -(float_) >> ',' >> // course over ground (blank?)
             date_ >> ',' >> // UT date
             ',' >> ',' >> // magnetic variation float,dir (blank?)
-            position_system_mode_indicator_ >> // position system mode indicator
+            fix_mode_ >>
             '*' >> checksum_ // checksum
             ;
     }
@@ -479,7 +479,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;
     ut_date_parser<Iterator> date_;
-    position_system_mode_indicator_parser position_system_mode_indicator_;
+    fix_mode_parser fix_mode_;
     checksum_parser<Iterator> checksum_;
 };
 
@@ -499,13 +499,13 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::gpvtg()>
             -(float_) >> ',' >> 'M' >> ',' >> // course over ground magnetic
             float_ >> ',' >> 'N' >> ',' >> // ground speed knots
             float_ >> ',' >> 'K' >> ',' >> // ground speed kmph
-            position_system_mode_indicator_ >> // position system mode indicator
+            fix_mode_ >>
             '*' >> uint_parser<unsigned int, 16, 2, 2>() // checksum
             ;
     }
 
     qi::rule<Iterator, nmea::gpvtg()> start;
-    position_system_mode_indicator_parser position_system_mode_indicator_;
+    fix_mode_parser fix_mode_;
 };
 
 template <typename Iterator>
