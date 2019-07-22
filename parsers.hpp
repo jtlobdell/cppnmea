@@ -1,5 +1,5 @@
-#ifndef NMEA_PARSE_HPP
-#define NMEA_PARSE_HPP
+#ifndef NMEA_PARSERS_HPP
+#define NMEA_PARSERS_HPP
 
 #include "nmea.hpp"
 
