@@ -361,8 +361,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::gpgll()>
 {
     gpgll_parser() : gpgll_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
+        using qi::lit;
         using qi::char_;
         using qi::float_;
         using qi::uint_;
@@ -371,7 +370,7 @@ struct gpgll_parser : qi::grammar<Iterator, nmea::gpgll()>
         using qi::_1;
         
         start %=
-            omit[string("GLL")] >> ',' >>
+            lit("GLL") >> ',' >>
             position_2d_ >> ',' >>
             utc_time_ >> ',' >>
             data_status_ >> ',' >>
@@ -393,14 +392,13 @@ struct gpgsa_parser : qi::grammar<Iterator, nmea::gpgsa()>
 {
     gpgsa_parser() : gpgsa_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
+        using qi::lit;
         using qi::float_;
         using qi::repeat;
         using qi::uint_parser;
         
         start %=
-            omit[string("GSA")] >> ',' >>
+            lit("GSA") >> ',' >>
             gsa_mode_ >> ',' >>
             gsa_fix_type_ >> ',' >>
             repeat(12)[-(uint_parser<unsigned int, 10, 2, 2>()) >> ','] >> // list of 12 sats, some may be empty
@@ -428,7 +426,7 @@ struct gpgsv_entry_parser : qi::grammar<Iterator, nmea::gpgsv_entry()>
             uint_ >> ',' >> // satellite id
             uint_ >> ',' >> // azimuth
             uint_ >> ',' >> // elevation
-            -(uint_) // signal to noise ratio, null when not tracking
+            -uint_ // signal to noise ratio, null when not tracking
             ;
     }
 
@@ -440,19 +438,18 @@ struct gpgsv_parser : qi::grammar<Iterator, nmea::gpgsv()>
 {
     gpgsv_parser() : gpgsv_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
+        using qi::lit;
         using qi::uint_;
         using qi::repeat;
         using qi::uint_parser;
 
         start %=
-            omit[string("GSV")] >> ',' >> // message id
+            lit("GSV") >> ',' >>
             uint_ >> ',' >> // number of messages
             uint_ >> ',' >> // message number
             uint_ >> // satellites in view
             repeat(1, 4)[',' >> entry_]  >> // satellites
-            '*' >> checksum_ // checksum
+            '*' >> checksum_
             ;
     }
 
@@ -466,22 +463,21 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
 {
     gprmc_parser() : gprmc_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
+        using qi::lit;
         using qi::float_;
         using qi::uint_parser;
 
         start %=
-            omit[string("RMC")] >> ',' >> // message id
-            time_ >> ',' >> // UTC time
-            data_status_ >> ',' >> // data status
+            lit("RMC") >> ',' >>
+            time_ >> ',' >>
+            data_status_ >> ',' >>
             position_2d_ >> ',' >>
             float_ >> ',' >> // speed over ground
-            -float_ >> ',' >> // course over ground (blank?)
-            date_ >> ',' >> // UT date
+            -float_ >> ',' >> // course over ground
+            date_ >> ',' >>
             -float_ >> ',' >> -mag_var_dir_ >> ',' >> // magnetic variation degrees and direction
             fix_mode_ >>
-            '*' >> checksum_ // checksum
+            '*' >> checksum_
             ;
     }
 
@@ -502,24 +498,24 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::gpvtg()>
 {
     gpvtg_parser() : gpvtg_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
+        using qi::lit;
         using qi::float_;
         using qi::uint_parser;
         
         start %=
-            omit[string("VTG")] >> ',' >> // message id
+            lit("VTG") >> ',' >>
             -float_ >> ',' >> 'T' >> ',' >> // course over ground true
             -float_ >> ',' >> 'M' >> ',' >> // course over ground magnetic
             float_ >> ',' >> 'N' >> ',' >> // ground speed knots
             float_ >> ',' >> 'K' >> ',' >> // ground speed kmph
             fix_mode_ >>
-            '*' >> uint_parser<unsigned int, 16, 2, 2>() // checksum
+            '*' >> checksum_;
             ;
     }
 
     qi::rule<Iterator, nmea::gpvtg()> start;
     fix_mode_parser fix_mode_;
+    checksum_parser<Iterator> checksum_;
 };
 
 template <typename Iterator>
@@ -527,11 +523,10 @@ struct nmea_parser : qi::grammar<Iterator, nmea::nmea_sentence()>
 {
     nmea_parser() : nmea_parser::base_type(start)
     {
-        using qi::omit;
-        using qi::string;
+        using qi::lit;
         
         start %=
-            omit[string("$GP")] >>
+            lit("$GP") >>
             (gpgga_ |
              gpgll_ |
              gpgsa_ |
