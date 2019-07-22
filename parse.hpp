@@ -45,15 +45,19 @@ type (e.g. nmea::gpgga) is associated with a void function which takes the resul
 parameter (e.g. std::function<void(const nmea::gpgga&)>). Thus we want to store functions
 in a map with types as its keys. boost::fusion::map does exactly that so we use it here.
 
-We also need a callback for failed parses. That doesn't have a type, so we define an empty
-struct so we have a key to store in the map (struct Parse_Failure). We pass a string_view
-to this callback which contains the sentence that failed to parse.
+We also need a callback for failed parses. That doesn't have a type, so we define a struct
+so we have a key to store in the map (struct Parse_Failure). We pass a string_view to this
+callback which contains the sentence that failed to parse.
 
- */
+*/
 
 
 // We need a type with which to associate our parse failue callback.
-struct Parse_Failure;
+// This is also a good place to specify the callback type.
+struct Parse_Failure
+{
+    typedef std::function<void(std::string_view)> Func_Type;
+};
 
 // For convenience and avoiding errors from typos.
 template <typename T>
@@ -78,7 +82,7 @@ typedef boost::fusion::map<
     Callbacks_Entry<nmea::gpgsv>::Type,
     Callbacks_Entry<nmea::gprmc>::Type,
     Callbacks_Entry<nmea::gpvtg>::Type,
-    boost::fusion::pair<Parse_Failure, std::function<void(std::string_view)>>
+    boost::fusion::pair<Parse_Failure, Parse_Failure::Func_Type>
     > callbacks_map_type;
 
 // Initialize the fusion::map with lambdas that do nothing.
@@ -91,19 +95,18 @@ callbacks_map_type callbacks(
     boost::fusion::make_pair<nmea::gpgsv>(Callback<nmea::gpgsv>::Type([](const nmea::gpgsv&){})),
     boost::fusion::make_pair<nmea::gprmc>(Callback<nmea::gprmc>::Type([](const nmea::gprmc&){})),
     boost::fusion::make_pair<nmea::gpvtg>(Callback<nmea::gpvtg>::Type([](const nmea::gpvtg&){})),
-    boost::fusion::make_pair<Parse_Failure>(std::function<void(std::string_view)>([](std::string_view){}))
+    boost::fusion::make_pair<Parse_Failure>(Parse_Failure::Func_Type([](std::string_view){}))
 );
 
 } // anonymous namespace
 
-template <typename T, typename Func>
-void setCallback(Func func)
+template <typename T>
+void setCallback(typename Callback<T>::Type func)
 {
     boost::fusion::at_key<T>(callbacks) = func;
 }
 
-template <typename Func>
-void setFailureCallback(Func func)
+void setFailureCallback(Parse_Failure::Func_Type func)
 {
     boost::fusion::at_key<Parse_Failure>(callbacks) = func;
 }

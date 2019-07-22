@@ -278,6 +278,14 @@ int main(int argc, char *argv[])
         }
     );
 
+    nmea::parse::setCallback<nmea::gpgsa>(print_gpgsa);
+    
+    nmea::parse::setFailureCallback(
+        [](std::string_view str) {
+            std::cerr << "This sentence failed to parse: " << str << std::endl;
+        }
+    );
+
     for (auto& s: samples) {
         nmea::parse::parse(s);
     }
