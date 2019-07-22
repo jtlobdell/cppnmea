@@ -7,8 +7,9 @@
 #include <boost/algorithm/string.hpp>
 #include <queue>
 #include <map>
-
+#include <string_view>
 #include "nmea.hpp"
+#include "parsers.hpp"
 #include "parse.hpp"
 
 namespace {
@@ -270,73 +271,17 @@ int main(int argc, char *argv[])
     
     in.close();
 
-    typedef std::string::const_iterator iterator_type;
-    typedef nmea::parse::nmea_parser<iterator_type> nmea_parser;
-    nmea_parser p;
-
-    bool win = true;
-    std::cout << "num samples: " << samples.size() << std::endl;
-    std::cout << "total lines parsed: " << num_repeats * samples.size() << std::endl;
-
-    std::queue<nmea::nmea_sentence> sentences;
-
-    // repeat parsing all the samples num_repeats time (for benchmarking)
-    for (unsigned long i = 0; i < num_repeats; ++i) {
-
-        unsigned long successful_parses = 0;
-        unsigned long failed_parses = 0;
-        
-        // parse each sample. report failures.
-        for (std::string& sample: samples) {
-            nmea::nmea_sentence sentence;
-            std::string::const_iterator iter = sample.begin();
-            std::string::const_iterator end = sample.end();
-            bool parsed = parse(iter, end, p, sentence);
-            bool at_end = (iter == end);
-
-            if (!(parsed && at_end)) {
-                std::cerr << "failure: " << sample << std::endl;
-                failed_parses++;
-            } else {
-                successful_parses++;
-                sentences.push(sentence);
-            }
-
-            win &= parsed;
+    // have all the samples, now parse them
+    nmea::parse::setCallback<nmea::gpgga>(
+        [](const nmea::gpgga& gga) {
+            print_gpgga(gga);
         }
+    );
+
+    for (auto& s: samples) {
+        nmea::parse::parse(s);
     }
 
-    if (win) std::cout << "very nice!" << std::endl;
-    else std::cout << "wah woo whoa!" << std::endl;
-
-    // all done parsing, now do something with it
-    print_line();
-    while (sentences.size() > 0) {
-        nmea::nmea_sentence sentence = sentences.front();
-        sentences.pop();
-
-        if (sentence.type() == typeid(nmea::gpgga)) {
-            nmea::gpgga gga = boost::get<nmea::gpgga>(sentence);
-            //print_gpgga(gga);
-        } else if (sentence.type() == typeid(nmea::gpgll)) {
-            nmea::gpgll gll = boost::get<nmea::gpgll>(sentence);
-            //print_gpgll(gll);
-        } else if (sentence.type() == typeid(nmea::gpgsa)) {
-            nmea::gpgsa gsa = boost::get<nmea::gpgsa>(sentence);
-            //print_gpgsa(gsa);
-        } else if (sentence.type() == typeid(nmea::gpgsv)) {
-            nmea::gpgsv gsv = boost::get<nmea::gpgsv>(sentence);
-            //print_gpgsv(gsv);
-        } else if (sentence.type() == typeid(nmea::gprmc)) {
-            nmea::gprmc rmc = boost::get<nmea::gprmc>(sentence);
-            //print_gprmc(rmc);
-        } else if (sentence.type() == typeid(nmea::gpvtg)) {
-            nmea::gpvtg vtg = boost::get<nmea::gpvtg>(sentence);
-            //print_gpvtg(vtg);
-        } else {
-            std::cout << "whomst is this message?" << std::endl;
-        }
-    }
     
     return 0;
 }
