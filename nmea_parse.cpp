@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
             //print_gprmc(rmc);
         } else if (sentence.type() == typeid(nmea::gpvtg)) {
             nmea::gpvtg vtg = boost::get<nmea::gpvtg>(sentence);
-            print_gpvtg(vtg);
+            //print_gpvtg(vtg);
         } else {
             std::cout << "whomst is this message?" << std::endl;
         }
