@@ -1,13 +1,169 @@
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <string>
 #include <complex>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <queue>
+#include <map>
 
 #include "nmea.hpp"
 #include "parse.hpp"
+
+namespace {
+
+std::map<nmea::direction_t, std::string> direction_to_string = {
+    {nmea::direction_t::north, "north"},
+    {nmea::direction_t::south, "south"},
+    {nmea::direction_t::east, "east"},
+    {nmea::direction_t::west, "west"}
+};
+
+std::map<nmea::fix_quality_t, std::string> fix_quality_to_string = {
+    {nmea::fix_quality_t::invalid, "invalid fix"},
+    {nmea::fix_quality_t::gps_fix, "gps fix"},
+    {nmea::fix_quality_t::dgps_fix, "dgps fix"},
+    {nmea::fix_quality_t::pps_fix, "pps fix"},
+    {nmea::fix_quality_t::real_time_kinematic, "real time kinematic"},
+    {nmea::fix_quality_t::float_rtk, "float real time kinematic"},
+    {nmea::fix_quality_t::dead_reckoning, "dead reckoning"},
+    {nmea::fix_quality_t::manual_input_mode, "manual input mode"},
+    {nmea::fix_quality_t::simulation_mode, "simulation mode"}
+};
+
+std::map<nmea::data_status_t, std::string> data_status_to_string = {
+    {nmea::data_status_t::active, "active"},
+    {nmea::data_status_t::invalid, "void"}
+};
+
+std::map<nmea::fix_mode_t, std::string> fix_mode_to_string = {
+    {nmea::fix_mode_t::autonomous, "autonomous"},
+    {nmea::fix_mode_t::differential, "differential"},
+    {nmea::fix_mode_t::estimated, "estimated"},
+    {nmea::fix_mode_t::manual, "manual"},
+    {nmea::fix_mode_t::invalid, "invalid"}
+};
+
+std::map<nmea::gsa_mode_t, std::string> gsa_mode_to_string = {
+    {nmea::gsa_mode_t::manual, "manual"},
+    {nmea::gsa_mode_t::automatic, "automatic"}
+};
+
+std::map<nmea::gsa_fix_type_t, std::string> gsa_fix_type_to_string = {
+    {nmea::gsa_fix_type_t::unavailable, "unavailable"},
+    {nmea::gsa_fix_type_t::_2d, "2d"},
+    {nmea::gsa_fix_type_t::_3d, "3d"}
+};
+
+void print_line()
+{
+    std::cout << "-------------------------------------------" << std::endl;
+}
+
+void print_position_2d(const nmea::position_2d_t& pos2d)
+{
+    auto& lat = pos2d.latitude;
+    auto& lon = pos2d.longitude;
+            
+    std::cout << "latitude: " << lat.degrees << " degrees, " << lat.minutes << " minutes, " <<
+        direction_to_string[lat.dir] <<
+        std::endl;
+
+    std::cout << "longitude: " << lon.degrees << " degrees, " << lon.minutes << " minutes, " <<
+        direction_to_string[lon.dir] <<
+        std::endl;
+}
+
+void print_time(const nmea::utc_time_t& time)
+{
+    std::cout << "time (utc): " <<
+        time.hours << ":" << time.minutes << ":" << time.seconds <<
+        std::endl;
+}
+
+template <typename T>
+void print_optional(const boost::optional<T>& opt)
+{
+    if (opt == boost::none) {
+        std::cout << "null";
+    } else {
+        std::cout << *opt;
+    }    
+}
+
+void print_checksum(unsigned int checksum)
+{
+    std::cout << "checksum: " << checksum <<
+        " (0x" << std::hex << checksum << ")" << std::dec <<
+        std::endl;
+}
+
+void print_gpgga(const nmea::gpgga& gga)
+{
+    std::cout << "$GPGGA" << std::endl;
+    
+    std::cout << fix_quality_to_string[gga.fix_quality] << std::endl;
+    print_time(gga.time);
+    print_position_2d(gga.pos_2d);
+
+    std::cout << "num sats tracked: " << gga.sats_tracked << std::endl;
+    std::cout << "horizontal degree of precision: " << gga.hdop << std::endl;
+    std::cout << "altitude (MSL): " << gga.msl_altitude << std::endl;
+    std::cout << "geoid separation (M): " << gga.geoid_separation << std::endl;
+
+    std::cout << "time since last dgps update: ";
+    print_optional(gga.time_since_dgps_update);
+    std::cout << std::endl;
+
+    std::cout << "station id: ";
+    print_optional(gga.dgps_station_id);
+    std::cout << std::endl;
+
+    print_checksum(gga.checksum);
+
+    print_line();
+}
+
+void print_gpgll(const nmea::gpgll& gll)
+{
+    std::cout << "$GPGLL" << std::endl;
+    
+    print_position_2d(gll.pos_2d);
+    print_time(gll.time);
+    std::cout << "data status: " << data_status_to_string[gll.data_status] << std::endl;
+    std::cout << "fix mode: " << fix_mode_to_string[gll.fix_mode] << std::endl;
+    print_checksum(gll.checksum);
+
+    print_line();
+}
+
+void print_gpgsa(const nmea::gpgsa& gsa)
+{
+    std::cout << "$GPGSA" << std::endl;
+    std::cout << "gsa mode: " << gsa_mode_to_string[gsa.gsa_mode] << std::endl;
+    std::cout << "gsa fix type: " << gsa_fix_type_to_string[gsa.gsa_fix_type] << std::endl;
+    std::cout << "satellites (size: " << gsa.satellites.size() << "):" << std::endl;
+
+    std::cout << "\t{";
+    for (std::size_t i = 0; i < gsa.satellites.size(); ++i) {
+        std::cout << gsa.satellites[i];
+        if (i+1 < gsa.satellites.size()) std::cout << ",";
+    }
+    std::cout << "}" << std::endl;
+
+    std::cout << "dilution of precision: " << gsa.dilution_of_precision << std::endl;
+    std::cout << "horizontal dilution of precision: " << gsa.horizontal_dilution_of_precision <<
+        std::endl;
+    std::cout << "vertical dilution of precision: " << gsa.vertical_dilution_of_precision <<
+        std::endl;
+    print_checksum(gsa.checksum);
+
+    print_line();
+}
+
+
+}; // anonymous namespace
 
 int main(int argc, char *argv[])
 {
@@ -78,95 +234,23 @@ int main(int argc, char *argv[])
     else std::cout << "wah woo whoa!" << std::endl;
 
     // all done parsing, now do something with it
+    print_line();
     while (sentences.size() > 0) {
         nmea::nmea_sentence sentence = sentences.front();
         sentences.pop();
 
         if (sentence.type() == typeid(nmea::gpgga)) {
             nmea::gpgga gga = boost::get<nmea::gpgga>(sentence);
-
-            switch (gga.fix_quality) {
-                case nmea::fix_quality_t::invalid:
-                    std::cout << "invalid fix" << std::endl;
-                    break;
-                case nmea::fix_quality_t::gps_fix:
-                    std::cout << "gps fix" << std::endl;
-                    break;
-                case nmea::fix_quality_t::dgps_fix:
-                    std::cout << "dgps fix" << std::endl;
-                    break;
-                case nmea::fix_quality_t::pps_fix:
-                    std::cout << "pps fix" << std::endl;
-                    break;
-                case nmea::fix_quality_t::real_time_kinematic:
-                    std::cout << "real time kinematic" << std::endl;
-                    break;
-                case nmea::fix_quality_t::float_rtk:
-                    std::cout << "float real time kinematic" << std::endl;
-                    break;
-                case nmea::fix_quality_t::dead_reckoning:
-                    std::cout << "dead reckoning" << std::endl;
-                    break;
-                case nmea::fix_quality_t::manual_input_mode:
-                    std::cout << "manual input mode" << std::endl;
-                    break;
-                case nmea::fix_quality_t::simulation_mode:
-                    std::cout << "simulation mode" << std::endl;
-                    break;
-            }
-
-            auto& time = gga.time;
-
-            std::cout << "time (utc): " << time.hours << ":" << time.minutes << ":" << time.seconds << std::endl;
-
-            auto& pos = gga.pos_2d;
-            auto& lat = pos.latitude;
-            auto& lon = pos.longitude;
-            
-            std::cout << "latitude: " << lat.degrees << " degrees, " << lat.minutes << " minutes, ";
-            if (lat.dir == nmea::direction_t::north) {
-                std::cout << " north";
-            } else if (lat.dir == nmea::direction_t::south) {
-                std::cout << " south";
-            }
-            std::cout << std::endl;
-
-            std::cout << "longitude: " << lon.degrees << " degrees, " << lon.minutes << " minutes, ";
-            if (lon.dir == nmea::direction_t::east) {
-                std::cout << " east";
-            } else if (lon.dir == nmea::direction_t::west) {
-                std::cout << " west";
-            }
-            std::cout << std::endl;
-
-            std::cout << "num sats tracked: " << gga.sats_tracked << std::endl;
-            std::cout << "horizontal degree of precision: " << gga.hdop << std::endl;
-            std::cout << "altitude (MSL): " << gga.msl_altitude << std::endl;
-            std::cout << "geoid separation (M): " << gga.geoid_separation << std::endl;
-
-            std::cout << "time since last dgps update: ";
-            if (gga.time_since_dgps_update == boost::none) {
-                std::cout << "null";
-            } else {
-                std::cout << *gga.time_since_dgps_update;
-            }
-            std::cout << std::endl;
-
-            std::cout << "station id: ";
-            if (gga.dgps_station_id == boost::none) {
-                std::cout << "null";
-            } else {
-                std::cout << *gga.dgps_station_id;
-            }
-            std::cout << std::endl;
-
-            std::cout << "checksum: " << gga.checksum << std::endl;
-
+            print_gpgga(gga);
+        } else if (sentence.type() == typeid(nmea::gpgll)) {
+            nmea::gpgll gll = boost::get<nmea::gpgll>(sentence);
+            print_gpgll(gll);
+        } else if (sentence.type() == typeid(nmea::gpgsa)) {
+            nmea::gpgsa gsa = boost::get<nmea::gpgsa>(sentence);
+            print_gpgsa(gsa);
         } else {
             continue;
         }
-
-        std::cout << "-------------------------------------------" << std::endl;
     }
     
     return 0;
