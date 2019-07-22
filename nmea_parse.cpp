@@ -221,6 +221,24 @@ void print_gprmc(const nmea::gprmc& rmc)
     print_line();
 }
 
+void print_gpvtg(const nmea::gpvtg& vtg)
+{
+    std::cout << "$GPVTG" << std::endl;
+
+    std::cout << "course over ground true: ";
+    print_optional(vtg.course_over_ground_true);
+    std::cout << std::endl;
+    std::cout << "course over ground magnetic: ";
+    print_optional(vtg.course_over_ground_magnetic);
+    std::cout << std::endl;
+    std::cout << "ground speed knots: " << vtg.ground_speed_knots << std::endl;
+    std::cout << "ground speed kmph: " << vtg.ground_speed_kmph << std::endl;
+    std::cout << "fix mode: " << fix_mode_to_string[vtg.fix_mode] << std::endl;
+    print_checksum(vtg.checksum);
+
+    print_line();
+}
+
 }; // anonymous namespace
 
 int main(int argc, char *argv[])
@@ -311,9 +329,12 @@ int main(int argc, char *argv[])
             //print_gpgsv(gsv);
         } else if (sentence.type() == typeid(nmea::gprmc)) {
             nmea::gprmc rmc = boost::get<nmea::gprmc>(sentence);
-            print_gprmc(rmc);
+            //print_gprmc(rmc);
+        } else if (sentence.type() == typeid(nmea::gpvtg)) {
+            nmea::gpvtg vtg = boost::get<nmea::gpvtg>(sentence);
+            print_gpvtg(vtg);
         } else {
-            continue;
+            std::cout << "whomst is this message?" << std::endl;
         }
     }
     

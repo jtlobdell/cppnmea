@@ -112,8 +112,8 @@ BOOST_FUSION_ADAPT_STRUCT (
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::gpvtg,
-    (float, course_over_ground_true)
-    (float, course_over_ground_magnetic)
+    (boost::optional<float>, course_over_ground_true)
+    (boost::optional<float>, course_over_ground_magnetic)
     (float, ground_speed_knots)
     (float, ground_speed_kmph)
     (nmea::fix_mode_t, fix_mode)
@@ -509,8 +509,8 @@ struct gpvtg_parser : qi::grammar<Iterator, nmea::gpvtg()>
         
         start %=
             omit[string("VTG")] >> ',' >> // message id
-            -(float_) >> ',' >> 'T' >> ',' >> // course over ground true
-            -(float_) >> ',' >> 'M' >> ',' >> // course over ground magnetic
+            -float_ >> ',' >> 'T' >> ',' >> // course over ground true
+            -float_ >> ',' >> 'M' >> ',' >> // course over ground magnetic
             float_ >> ',' >> 'N' >> ',' >> // ground speed knots
             float_ >> ',' >> 'K' >> ',' >> // ground speed kmph
             fix_mode_ >>

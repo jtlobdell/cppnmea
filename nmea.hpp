@@ -150,8 +150,8 @@ struct gprmc {
 
 // Course Over Ground and Ground Speed
 struct gpvtg {
-    float course_over_ground_true;
-    float course_over_ground_magnetic;
+    boost::optional<float> course_over_ground_true;
+    boost::optional<float> course_over_ground_magnetic;
     float ground_speed_knots;
     float ground_speed_kmph;
     fix_mode_t fix_mode;
