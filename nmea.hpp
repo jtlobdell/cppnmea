@@ -116,7 +116,7 @@ struct gpgsv_entry {
     unsigned int satellite_id_number;
     unsigned int elevation;
     unsigned int azimuth;
-    unsigned int signal_noise_ratio;
+    boost::optional<unsigned int> signal_noise_ratio;
 };
 
 // GNSS Satellites in View

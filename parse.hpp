@@ -84,7 +84,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     (unsigned int, satellite_id_number)
     (unsigned int, elevation)
     (unsigned int, azimuth)
-    (unsigned int, signal_noise_ratio)
+    (boost::optional<unsigned int>, signal_noise_ratio)
 )
 
 BOOST_FUSION_ADAPT_STRUCT (

@@ -162,6 +162,27 @@ void print_gpgsa(const nmea::gpgsa& gsa)
     print_line();
 }
 
+void print_gpgsv(const nmea::gpgsv& gsv)
+{
+    std::cout << "$GPGSV" << std::endl;
+
+    std::cout << "message " << gsv.message_number << " of " << gsv.number_of_messages << std::endl;
+    std::cout << "satellites in view: " << gsv.satellites_in_view << std::endl;
+    
+    std::cout << "satellites (size: " << gsv.gpgsv_entries.size() << "): {" << std::endl;
+    for (auto& entry: gsv.gpgsv_entries) {
+        std::cout << "\t{id: " << entry.satellite_id_number << ", " <<
+            "elevation: " << entry.elevation << ", " <<
+            "azimuth: " << entry.azimuth << ", " <<
+            "snr: ";
+        print_optional(entry.signal_noise_ratio);
+        std::cout << "}" << std::endl;
+    }
+    std::cout << "}" << std::endl;
+    
+    print_checksum(gsv.checksum);
+    print_line();
+}
 
 }; // anonymous namespace
 
@@ -241,13 +262,16 @@ int main(int argc, char *argv[])
 
         if (sentence.type() == typeid(nmea::gpgga)) {
             nmea::gpgga gga = boost::get<nmea::gpgga>(sentence);
-            print_gpgga(gga);
+            //print_gpgga(gga);
         } else if (sentence.type() == typeid(nmea::gpgll)) {
             nmea::gpgll gll = boost::get<nmea::gpgll>(sentence);
-            print_gpgll(gll);
+            //print_gpgll(gll);
         } else if (sentence.type() == typeid(nmea::gpgsa)) {
             nmea::gpgsa gsa = boost::get<nmea::gpgsa>(sentence);
-            print_gpgsa(gsa);
+            //print_gpgsa(gsa);
+        } else if (sentence.type() == typeid(nmea::gpgsv)) {
+            nmea::gpgsv gsv = boost::get<nmea::gpgsv>(sentence);
+            print_gpgsv(gsv);
         } else {
             continue;
         }
