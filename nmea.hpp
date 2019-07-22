@@ -14,6 +14,12 @@ enum class direction_t {
     west
 };
 
+enum class magnetic_variation_direction_t
+{
+    east,
+    west
+};
+
 struct latitude_t {
     unsigned int degrees;
     float minutes;
@@ -136,6 +142,8 @@ struct gprmc {
     float speed_over_ground;
     float course_over_ground;
     ut_date_t date;
+    boost::optional<float> magnetic_variation;
+    boost::optional<magnetic_variation_direction_t> magnetic_variation_dir;
     fix_mode_t fix_mode;
     unsigned int checksum;
 };

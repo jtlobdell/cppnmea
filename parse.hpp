@@ -104,6 +104,8 @@ BOOST_FUSION_ADAPT_STRUCT (
     (float, speed_over_ground)
     (float, course_over_ground)
     (nmea::ut_date_t, date)
+    (boost::optional<float>, magnetic_variation)
+    (boost::optional<nmea::magnetic_variation_direction_t>, magnetic_variation_dir)
     (nmea::fix_mode_t, fix_mode)
     (unsigned int, checksum)
 )
@@ -131,6 +133,17 @@ struct direction_parser : qi::symbols<char, nmea::direction_t>
             ("S", nmea::direction_t::south)
             ("E", nmea::direction_t::east)
             ("W", nmea::direction_t::west)
+            ;
+    }
+};
+
+struct magnetic_variation_direction_parser : qi::symbols<char, nmea::magnetic_variation_direction_t>
+{
+    magnetic_variation_direction_parser()
+    {
+        add
+            ("E", nmea::magnetic_variation_direction_t::east)
+            ("W", nmea::magnetic_variation_direction_t::west)
             ;
     }
 };
@@ -464,9 +477,9 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
             data_status_ >> ',' >> // data status
             position_2d_ >> ',' >>
             float_ >> ',' >> // speed over ground
-            -(float_) >> ',' >> // course over ground (blank?)
+            -float_ >> ',' >> // course over ground (blank?)
             date_ >> ',' >> // UT date
-            ',' >> ',' >> // magnetic variation float,dir (blank?)
+            -float_ >> ',' >> -mag_var_dir_ >> ',' >> // magnetic variation degrees and direction
             fix_mode_ >>
             '*' >> checksum_ // checksum
             ;
@@ -479,6 +492,7 @@ struct gprmc_parser : qi::grammar<Iterator, nmea::gprmc()>
     latitude_parser<Iterator> latitude_;
     longitude_parser<Iterator> longitude_;
     ut_date_parser<Iterator> date_;
+    magnetic_variation_direction_parser mag_var_dir_;
     fix_mode_parser fix_mode_;
     checksum_parser<Iterator> checksum_;
 };

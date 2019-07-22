@@ -82,6 +82,11 @@ void print_time(const nmea::utc_time_t& time)
         std::endl;
 }
 
+void print_date(const nmea::ut_date_t& date)
+{
+    std::cout << "day: " << date.dd << ", month: " << date.mm << ", year: " << date.yy << std::endl;
+}
+
 template <typename T>
 void print_optional(const boost::optional<T>& opt)
 {
@@ -184,6 +189,38 @@ void print_gpgsv(const nmea::gpgsv& gsv)
     print_line();
 }
 
+void print_gprmc(const nmea::gprmc& rmc)
+{
+    std::cout << "$GPRMC" << std::endl;
+
+    print_time(rmc.time);
+    std::cout << "data status: " << data_status_to_string[rmc.data_status] << std::endl;
+    print_position_2d(rmc.pos_2d);
+    std::cout << "speed over ground: " << rmc.speed_over_ground << std::endl;
+    std::cout << "course over ground: " << rmc.course_over_ground << std::endl;
+    print_date(rmc.date);
+    
+    std::cout << "magnetic variation: ";
+    print_optional(rmc.magnetic_variation);
+    std::cout << " degrees";
+    std::cout << ", direction: ";
+    if (rmc.magnetic_variation_dir == boost::none) {
+        std::cout << "null";
+    } else {
+        if (rmc.magnetic_variation_dir == nmea::magnetic_variation_direction_t::east) {
+            std::cout << "east";
+        } else {
+            std::cout << "west";
+        }
+    }
+    std::cout << std::endl;
+    
+    std::cout << "fix mode: " << fix_mode_to_string[rmc.fix_mode] << std::endl;
+    print_checksum(rmc.checksum);
+
+    print_line();
+}
+
 }; // anonymous namespace
 
 int main(int argc, char *argv[])
@@ -271,7 +308,10 @@ int main(int argc, char *argv[])
             //print_gpgsa(gsa);
         } else if (sentence.type() == typeid(nmea::gpgsv)) {
             nmea::gpgsv gsv = boost::get<nmea::gpgsv>(sentence);
-            print_gpgsv(gsv);
+            //print_gpgsv(gsv);
+        } else if (sentence.type() == typeid(nmea::gprmc)) {
+            nmea::gprmc rmc = boost::get<nmea::gprmc>(sentence);
+            print_gprmc(rmc);
         } else {
             continue;
         }
