@@ -8,6 +8,7 @@
 #include <queue>
 #include <map>
 #include <string_view>
+#include <chrono>
 #include "nmea.hpp"
 #include "parsers.hpp"
 #include "parse.hpp"
@@ -271,7 +272,12 @@ int main(int argc, char *argv[])
     
     in.close();
 
+    std::cout << "sample size: " << samples.size() << std::endl;
+    std::cout << "will parse " << samples.size() * num_repeats << " sentences" << std::endl;
+
+    
     // have all the samples, now parse them
+    /*
     nmea::parse::setCallback<nmea::gpgga>(
         [](const nmea::gpgga& gga) {
             print_gpgga(gga);
@@ -279,6 +285,7 @@ int main(int argc, char *argv[])
     );
 
     nmea::parse::setCallback<nmea::gpgsa>(print_gpgsa);
+    */
     
     nmea::parse::setFailureCallback(
         [](std::string_view str) {
@@ -286,10 +293,27 @@ int main(int argc, char *argv[])
         }
     );
 
-    for (auto& s: samples) {
-        nmea::parse::parse(s);
+    auto start = std::chrono::steady_clock::now();
+    
+    for (unsigned int i = 0; i < num_repeats; ++i) {
+        for (auto& s: samples) {
+            nmea::parse::parse(s);
+        }
     }
 
+    auto end = std::chrono::steady_clock::now();
+
+    //double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
+    long long elapsed_us =
+        std::chrono::duration_cast<std::chrono::duration<long long, std::micro>>(end-start).count();
+    double elapsed_s =
+        std::chrono::duration_cast<std::chrono::duration<double>>(end-start).count();
+
+    print_line();
+    std::cout << "time taken (microseconds): " << elapsed_us << std::endl;
+    std::cout << "time taken (seconds): " << elapsed_s << std::endl;
+    std::cout << "microseconds per sample: " <<
+        static_cast<double>(elapsed_us) / static_cast<double>(samples.size()*num_repeats) << std::endl;
     
     return 0;
 }

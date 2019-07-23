@@ -98,6 +98,11 @@ callbacks_map_type callbacks(
     boost::fusion::make_pair<Parse_Failure>(Parse_Failure::Func_Type([](std::string_view){}))
 );
 
+typedef std::string_view::const_iterator iterator_type;
+typedef nmea::parse::nmea_parser<iterator_type> nmea_parser;
+nmea_parser p;
+nmea::nmea_sentence sentence;
+
 } // anonymous namespace
 
 template <typename T>
@@ -113,10 +118,6 @@ void setFailureCallback(Parse_Failure::Func_Type func)
 
 void parse(std::string_view str)
 {
-    typedef std::string_view::const_iterator iterator_type;
-    typedef nmea::parse::nmea_parser<iterator_type> nmea_parser;
-    nmea_parser p;
-    nmea::nmea_sentence sentence;
     iterator_type iter = str.begin();
     iterator_type end = str.end();
     bool parsed = parse(iter, end, p, sentence);
@@ -143,7 +144,8 @@ void parse(std::string_view str)
         } else {
             // If this code is reached then some parsed type
             // is unaccounted for.
-            throw std::domain_error("variant type is unhandled");
+            throw std::domain_error("variant type is unhandled. sentence: "
+                                    + std::string(str));
         }
 
     } else {
