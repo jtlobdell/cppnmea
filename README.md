@@ -1,13 +1,64 @@
-C++ lib for parsing and handling NMEA messages. Very early development.
+cppnmea implements a Boost.Spirit-based parser for NMEA sentences. It also defines NMEA types and associates them with user-defined callback functions. The result is a very fast and easy to use parser.
 
-It uses Boost Spirit for parsing. Because of this, compiling is quite resource-intensive.
-I tried building it on a Raspberry Pi Zero W and ran out of memory. Oops! Now I'm using a cross compiler.
+## Requirements:
+* Boost Spirit
+* Modern compiler with C++17 support
 
-Despite that, I think it will end up being blazing fast.
+## Quick Intro
 
-Benchmarking on my Raspberry Pi Zero W (as of commit 39506ac):
+### Create a parser
+```
+nmea::Parser np;
+```
 
-CPU info:
+### Associate a parsed type with a callback function
+```
+np.setCallback<nmea::gpgga>(
+	[](const nmea::gpgga& gga) {
+	    // do stuff
+		std::cout << "sats tracked: " << gga.sats_tracked << std::endl;
+	}
+);
+```
+
+### Handle failed parses
+
+```
+np.setFailureCallback(
+	[](std::string_view str) {
+		// do stuff
+		std::cerr << "failed to parse sentence: " << str << std::endl;
+	}
+);
+```
+
+### Parse a sentence
+
+```
+std::string s = "...";
+np.parse(s);
+```
+
+### Full example
+
+See [example/nmea_parse.cpp](example/nmea_parse.cpp) for a complete example.
+
+The example reads samples.txt (not provided) line-by-line for NMEA sentences then parses them. Data from $GPGGA sentences (`nmea::gpgga`) are placed into a queue. After all the samples are processed, the queue is emptied, with each `nmea::gpgga` is given to a printing function. The time it takes to parse is also calculated and reported. The example also contains mostly unused functions for printing or converting the parsed types to strings.
+
+## Types
+
+For specific details on parsed data types, see include/cppnmea/types.hpp.
+
+
+## Benchmarks
+
+### Raspberry Pi Zero W (as of commit 39506ac)
+
+#### Summary
+
+About 15us per sample
+
+#### CPU info
 
 ```
 john@raspberrypi ~ $ cat /proc/cpuinfo
@@ -26,7 +77,7 @@ Revision	: 9000c1
 Serial		: 00000000bc5a3643
 ```
 
-Single instance:
+#### Single instance
 
 ```
 john@raspberrypi ~ $ ./nmea_parse_O2.rpi 100
@@ -38,13 +89,9 @@ time taken (seconds): 1.51862
 microseconds per sample: 13.6077
 ```
 
-Running the previous benchmark 100 times, and averaging the microseconds per sample:
+#### Average of 100 runs
 
 ```
 john@raspberrypi ~ $ for n in `seq 100`; do ./nmea_parse_O2.rpi 100 | grep "per sample" | cut -f 4 -d ' '; done | python -c "import sys; nums = [float(n) for n in sys.stdin]; print(sum(nums)/len(nums))"
 14.982175
 ```
-
-To summarize:
-- about 15us per sample
-- no failed parses with my sample set
