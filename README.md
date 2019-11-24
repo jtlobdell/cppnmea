@@ -1,4 +1,4 @@
-*cppnmea* implements a Boost.Spirit-based parser for NMEA sentences. It also defines NMEA types and associates them with user-defined callback functions. The result is a very fast and easy to use parser.
+**cppnmea** implements a Boost.Spirit-based parser for NMEA sentences. It also defines NMEA types and associates them with user-defined callback functions. The result is a very fast and easy to use parser.
 
 ## Requirements:
 * Boost Spirit
