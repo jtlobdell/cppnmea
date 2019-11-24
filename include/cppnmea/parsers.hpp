@@ -1,7 +1,7 @@
-#ifndef NMEA_PARSERS_HPP
-#define NMEA_PARSERS_HPP
+#ifndef CPPNMEA_PARSERS_HPP
+#define CPPNMEA_PARSERS_HPP
 
-#include "nmea.hpp"
+#include <cppnmea/types.hpp>
 
 #include <boost/config/warning_disable.hpp>
 #include <boost/spirit/include/qi.hpp>
@@ -120,7 +120,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     (unsigned int, checksum)
 )
 
-namespace nmea::parse {
+namespace nmea::spirit {
 
 namespace qi = boost::spirit::qi;
 
@@ -546,6 +546,6 @@ struct nmea_parser : qi::grammar<Iterator, nmea::nmea_sentence()>
     gpvtg_parser<Iterator> gpvtg_;
 };
 
-} // namespace nmea::parse
+} // namespace nmea::spirit
 
 #endif

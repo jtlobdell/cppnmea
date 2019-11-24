@@ -1,2 +1,0 @@
-nmea_parse.rpi:
-	arm-linux-gnueabihf-g++ -o nmea_parse_O2.rpi -O2 -fPIC -std=c++17 -I/usr/arm-linux-gnueabihf/include/ nmea_parse.cpp

@@ -1,5 +1,5 @@
-#ifndef NMEA_HPP
-#define NMEA_HPP
+#ifndef CPPNMEA_TYPES_HPP
+#define CPPNMEA_TYPES_HPP
 
 #include <vector>
 #include <boost/optional.hpp>
