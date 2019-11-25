@@ -339,7 +339,7 @@ struct gpgga_parser : qi::grammar<Iterator, nmea::gpgga()>
             utc_time_ >> ',' >>
             position_2d_ >> ',' >>
             fix_quality_ >> ',' >>
-            uint_[ _pass = (_1 >= 0 && _1 <= 12) ] >> ',' >> // number of satellites being tracked
+            uint_[ _pass = (_1 >= 0u && _1 <= 12u) ] >> ',' >> // number of satellites being tracked
             float_ >> ',' >> // horizontal dilution of precision
             float_ >> ',' >> 'M' >> ',' >> // MSL (mean sea level) altitude, meters
             float_ >> ',' >> 'M' >> ',' >> // height of geoid (MSL) above WGS84 ellipsoid
