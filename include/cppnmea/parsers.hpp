@@ -532,7 +532,9 @@ struct nmea_parser : qi::grammar<Iterator, nmea::nmea_sentence()>
              gpgsa_ |
              gpgsv_ |
              gprmc_ |
-             gpvtg_)
+             gpvtg_) >>
+            -lit('\r') >>
+            -lit('\n')
             ;
     }
 

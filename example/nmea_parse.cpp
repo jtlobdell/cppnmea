@@ -262,7 +262,6 @@ int main(int argc, char *argv[])
 
     // store each line of samples.txt into samples vector
     while (std::getline(in, line)) {
-        boost::trim_right(line);
         if (line.size() > 0) {
             samples.push_back(line);
         }
@@ -302,7 +301,8 @@ int main(int argc, char *argv[])
     
     while (gga_sentences.size() > 0) {
         const auto& gga = gga_sentences.front();
-        print_gpgga(gga);
+        // very annoying while I'm benchmarking
+        //print_gpgga(gga);
         gga_sentences.pop();
     }
 
