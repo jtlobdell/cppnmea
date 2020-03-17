@@ -2,8 +2,8 @@
 #define CPPNMEA_TYPES_HPP
 
 #include <vector>
-#include <boost/optional.hpp>
-#include <boost/variant.hpp>
+#include <optional>
+#include <variant>
 
 namespace nmea {
 
@@ -94,8 +94,8 @@ struct gpgga {
     float hdop; // horizontal degree of precision
     float msl_altitude; // mean sea level
     float geoid_separation; // height of geoid (MSL) above WGS84 ellipsoid
-    boost::optional<float> time_since_dgps_update;
-    boost::optional<unsigned int> dgps_station_id;
+    std::optional<float> time_since_dgps_update;
+    std::optional<unsigned int> dgps_station_id;
     unsigned int checksum;
 };
 
@@ -122,7 +122,7 @@ struct gpgsv_entry {
     unsigned int satellite_id_number;
     unsigned int elevation;
     unsigned int azimuth;
-    boost::optional<unsigned int> signal_noise_ratio;
+    std::optional<unsigned int> signal_noise_ratio;
 };
 
 // GNSS Satellites in View
@@ -142,23 +142,23 @@ struct gprmc {
     float speed_over_ground;
     float course_over_ground;
     ut_date_t date;
-    boost::optional<float> magnetic_variation;
-    boost::optional<magnetic_variation_direction_t> magnetic_variation_dir;
+    std::optional<float> magnetic_variation;
+    std::optional<magnetic_variation_direction_t> magnetic_variation_dir;
     fix_mode_t fix_mode;
     unsigned int checksum;
 };
 
 // Course Over Ground and Ground Speed
 struct gpvtg {
-    boost::optional<float> course_over_ground_true;
-    boost::optional<float> course_over_ground_magnetic;
+    std::optional<float> course_over_ground_true;
+    std::optional<float> course_over_ground_magnetic;
     float ground_speed_knots;
     float ground_speed_kmph;
     fix_mode_t fix_mode;
     unsigned int checksum;
 };
 
-typedef boost::variant<
+typedef std::variant<
     nmea::gpgga,
     nmea::gpgll,
     nmea::gpgsa,

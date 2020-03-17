@@ -88,9 +88,9 @@ void print_date(const nmea::ut_date_t& date)
 }
 
 template <typename T>
-void print_optional(const boost::optional<T>& opt)
+void print_optional(const std::optional<T>& opt)
 {
-    if (opt == boost::none) {
+    if (opt.has_value()) {
         std::cout << "null";
     } else {
         std::cout << *opt;
@@ -204,7 +204,7 @@ void print_gprmc(const nmea::gprmc& rmc)
     print_optional(rmc.magnetic_variation);
     std::cout << " degrees";
     std::cout << ", direction: ";
-    if (rmc.magnetic_variation_dir == boost::none) {
+    if (!rmc.magnetic_variation_dir.has_value()) {
         std::cout << "null";
     } else {
         if (rmc.magnetic_variation_dir == nmea::magnetic_variation_direction_t::east) {
@@ -302,7 +302,7 @@ int main(int argc, char *argv[])
     while (gga_sentences.size() > 0) {
         const auto& gga = gga_sentences.front();
         // very annoying while I'm benchmarking
-        //print_gpgga(gga);
+        print_gpgga(gga);
         gga_sentences.pop();
     }
 

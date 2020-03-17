@@ -54,8 +54,8 @@ BOOST_FUSION_ADAPT_STRUCT(
     (float, hdop)
     (float, msl_altitude)
     (float, geoid_separation)
-    (boost::optional<float>, time_since_dgps_update)
-    (boost::optional<unsigned int>, dgps_station_id)
+    (std::optional<float>, time_since_dgps_update)
+    (std::optional<unsigned int>, dgps_station_id)
     (unsigned int, checksum)
 )
 
@@ -84,7 +84,7 @@ BOOST_FUSION_ADAPT_STRUCT (
     (unsigned int, satellite_id_number)
     (unsigned int, elevation)
     (unsigned int, azimuth)
-    (boost::optional<unsigned int>, signal_noise_ratio)
+    (std::optional<unsigned int>, signal_noise_ratio)
 )
 
 BOOST_FUSION_ADAPT_STRUCT (
@@ -104,16 +104,16 @@ BOOST_FUSION_ADAPT_STRUCT (
     (float, speed_over_ground)
     (float, course_over_ground)
     (nmea::ut_date_t, date)
-    (boost::optional<float>, magnetic_variation)
-    (boost::optional<nmea::magnetic_variation_direction_t>, magnetic_variation_dir)
+    (std::optional<float>, magnetic_variation)
+    (std::optional<nmea::magnetic_variation_direction_t>, magnetic_variation_dir)
     (nmea::fix_mode_t, fix_mode)
     (unsigned int, checksum)
 )
 
 BOOST_FUSION_ADAPT_STRUCT (
     nmea::gpvtg,
-    (boost::optional<float>, course_over_ground_true)
-    (boost::optional<float>, course_over_ground_magnetic)
+    (std::optional<float>, course_over_ground_true)
+    (std::optional<float>, course_over_ground_magnetic)
     (float, ground_speed_knots)
     (float, ground_speed_kmph)
     (nmea::fix_mode_t, fix_mode)

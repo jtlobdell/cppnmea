@@ -139,23 +139,23 @@ public:
         bool parsed = boost::spirit::qi::parse(iter, end, p, sentence);
 
         if (parsed && iter == end) {
-            if (sentence.type() == typeid(nmea::gpgga)) {
-                nmea::gpgga gga = boost::get<nmea::gpgga>(sentence);
+            if (std::holds_alternative<nmea::gpgga>(sentence)) {
+                nmea::gpgga gga = std::get<nmea::gpgga>(sentence);
                 boost::fusion::at_key<nmea::gpgga>(callbacks)(gga);
-            } else if (sentence.type() == typeid(nmea::gpgll)) {
-                nmea::gpgll gll = boost::get<nmea::gpgll>(sentence);
+            } else if (std::holds_alternative<nmea::gpgll>(sentence)) {
+                nmea::gpgll gll = std::get<nmea::gpgll>(sentence);
                 boost::fusion::at_key<nmea::gpgll>(callbacks)(gll);
-            } else if (sentence.type() == typeid(nmea::gpgsa)) {
-                nmea::gpgsa gsa = boost::get<nmea::gpgsa>(sentence);
+            } else if (std::holds_alternative<nmea::gpgsa>(sentence)) {
+                nmea::gpgsa gsa = std::get<nmea::gpgsa>(sentence);
                 boost::fusion::at_key<nmea::gpgsa>(callbacks)(gsa);
-            } else if (sentence.type() == typeid(nmea::gpgsv)) {
-                nmea::gpgsv gsv = boost::get<nmea::gpgsv>(sentence);
+            } else if (std::holds_alternative<nmea::gpgsv>(sentence)) {
+                nmea::gpgsv gsv = std::get<nmea::gpgsv>(sentence);
                 boost::fusion::at_key<nmea::gpgsv>(callbacks)(gsv);
-            } else if (sentence.type() == typeid(nmea::gprmc)) {
-                nmea::gprmc rmc = boost::get<nmea::gprmc>(sentence);
+            } else if (std::holds_alternative<nmea::gprmc>(sentence)) {
+                nmea::gprmc rmc = std::get<nmea::gprmc>(sentence);
                 boost::fusion::at_key<nmea::gprmc>(callbacks)(rmc);
-            } else if (sentence.type() == typeid(nmea::gpvtg)) {
-                nmea::gpvtg vtg = boost::get<nmea::gpvtg>(sentence);
+            } else if (std::holds_alternative<nmea::gpvtg>(sentence)) {
+                nmea::gpvtg vtg = std::get<nmea::gpvtg>(sentence);
                 boost::fusion::at_key<nmea::gpvtg>(callbacks)(vtg);
             } else {
                 // If this code is reached then some parsed type
