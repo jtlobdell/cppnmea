@@ -4,6 +4,8 @@
 #include <string>
 #include <complex>
 #include <fstream>
+#include <cstdlib>
+#include <cerrno>
 #include <boost/algorithm/string.hpp>
 #include <queue>
 #include <map>
@@ -241,16 +243,34 @@ void print_gpvtg(const nmea::gpvtg& vtg)
 
 }; // anonymous namespace
 
+#ifdef BOOST_NO_EXCEPTIONS
+
+namespace boost
+{
+
+void throw_exception(const std::exception& e)
+{
+    std::cerr << "error: " << e.what() << std::endl;
+    std::exit(1);
+}
+
+} // namespace boost
+
+#endif // BOOST_NO_EXCEPTIONS
+
 int main(int argc, char *argv[])
 {
     unsigned long num_repeats = 1;
     if (argc == 2) {
-        try {
-            num_repeats = std::stoul(std::string(argv[1]));
-        } catch (std::invalid_argument&) {
+        char* end;
+        num_repeats = std::strtoul(argv[1], &end, 10);
+        if (*end != '\0')
+        {
             std::cerr << "num_repeats must be an unsigned long" << std::endl;
             return 1;
-        } catch (std::out_of_range&) {
+        }
+        if (errno == ERANGE)
+        {
             std::cerr << "num_repeats is out of range" << std::endl;
             return 1;
         }
@@ -302,7 +322,7 @@ int main(int argc, char *argv[])
     while (gga_sentences.size() > 0) {
         const auto& gga = gga_sentences.front();
         // very annoying while I'm benchmarking
-        print_gpgga(gga);
+        // print_gpgga(gga);
         gga_sentences.pop();
     }
 
