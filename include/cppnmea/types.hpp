@@ -168,7 +168,6 @@ typedef std::variant<
     >
 nmea_sentence;
 
-
 } // namespace nmea
 
 #endif

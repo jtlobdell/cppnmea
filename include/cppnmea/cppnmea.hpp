@@ -4,14 +4,17 @@
 #include <cppnmea/cppnmea.hpp>
 #include <cppnmea/types.hpp>
 #include <cppnmea/parsers.hpp>
-
 #include <string_view>
 #include <functional>
+#include <stdexcept>
+#include <boost/fusion/support/pair.hpp>
+#include <boost/fusion/include/pair.hpp>
 #include <boost/fusion/container/map.hpp>
 #include <boost/fusion/include/map.hpp>
 #include <boost/fusion/container/map/map_fwd.hpp>
 #include <boost/fusion/include/map_fwd.hpp>
-#include <stdexcept>
+#include <boost/fusion/sequence/intrinsic/at_key.hpp>
+#include <boost/fusion/include/at_key.hpp>
 
 namespace nmea {
 
@@ -110,7 +113,7 @@ public:
             boost::fusion::make_pair<detail::Parse_Failure>(detail::Parse_Failure::Func_Type([](std::string_view){}))
         );
     }
-    
+
     /// 
     /// \brief Set the callback function for a parsed sentence type
     /// 
@@ -133,7 +136,6 @@ public:
     /// 
     void parse(std::string_view str)
     {
-        
         detail::iterator_type iter = str.begin();
         detail::iterator_type end = str.end();
         bool parsed = boost::spirit::qi::parse(iter, end, p, sentence);
@@ -172,7 +174,7 @@ protected:
     detail::callbacks_map_type callbacks;
     detail::nmea_parser p;
     nmea::nmea_sentence sentence;
-    
+
 }; // class Parser
 
 } // namespace nmea
